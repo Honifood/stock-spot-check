@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "appTitle": "Stock Spot Check",
   "mandatoryLines": 3,
   "maxSaved": 10,
