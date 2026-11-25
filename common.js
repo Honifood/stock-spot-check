@@ -71,5 +71,5 @@
     });
   }
 
-  window.SC = { BUILD: "1.1.0", loadConfig: loadConfig, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  window.SC = { BUILD: "1.1.1", loadConfig: loadConfig, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();

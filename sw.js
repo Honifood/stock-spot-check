@@ -1,5 +1,5 @@
 // Bump CACHE_NAME on every release (admin "Publish" in GitHub = new commit; change this string to ship app code changes).
-var CACHE_NAME = "spot-check-v2";
+var CACHE_NAME = "spot-check-v3";
 var ASSETS = [
   "./", "./index.html", "./admin.html", "./styles.css", "./app.js", "./common.js", "./pdf.js",
   "./admin.js", "./vendor/jspdf.umd.min.js", "./manifest.json", "./icon-192.png", "./icon-512.png"
@@ -25,6 +25,11 @@ self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   // config.json (shops/categories) is always fetched fresh so admin changes reach phones on open.
   if (url.pathname.slice(-11) === "config.json") {
+    e.respondWith(fetch(e.request, { cache: "no-store" }).catch(function () { return caches.match(e.request); }));
+    return;
+  }
+  // Admin files are always fetched fresh (cache only as offline fallback).
+  if (/\/admin\.(html|js)$/.test(url.pathname)) {
     e.respondWith(fetch(e.request, { cache: "no-store" }).catch(function () { return caches.match(e.request); }));
     return;
   }

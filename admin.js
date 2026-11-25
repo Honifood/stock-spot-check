@@ -104,14 +104,24 @@
     if (!o || !r || !tk) { status("Owner, repository and token are required.", false); return; }
     pref("owner", o); pref("repo", r); pref("branch", b); pref("token", tk);
     var url = "https://api.github.com/repos/" + o + "/" + r + "/contents/config.json", hd = { Authorization: "Bearer " + tk, Accept: "application/vnd.github+json" };
-    status("Publishing…", true);
-    fetch(url + "?ref=" + encodeURIComponent(b), { headers: hd }).then(function (res) { return res.ok ? res.json() : (res.status === 404 ? {} : Promise.reject(new Error("GitHub " + res.status))); })
-      .then(function (cur) {
-        var body = { message: "Update spot check config", content: b64(json()), branch: b }; if (cur.sha) body.sha = cur.sha;
-        return fetch(url, { method: "PUT", headers: hd, body: JSON.stringify(body) });
-      })
-      .then(function (res) { if (!res.ok) return res.text().then(function (t) { throw new Error("GitHub " + res.status + " " + t.slice(0, 120)); }); status("Published ✓ Phones will see it in about a minute.", true); })
-      .catch(function (err) { status("Failed: " + err.message, false); });
+    status("Publishing\u2026", true);
+    var content = b64(json());
+    function getSha() {
+      return fetch(url + "?ref=" + encodeURIComponent(b) + "&_=" + Date.now(), { headers: hd, cache: "no-store" })
+        .then(function (res) { return res.ok ? res.json() : (res.status === 404 ? {} : Promise.reject(new Error("GitHub " + res.status))); })
+        .then(function (cur) { return cur.sha || null; });
+    }
+    function put(attempt) {
+      return getSha().then(function (sha) {
+        var body = { message: "Update spot check config", content: content, branch: b }; if (sha) body.sha = sha;
+        return fetch(url, { method: "PUT", headers: hd, body: JSON.stringify(body), cache: "no-store" });
+      }).then(function (res) {
+        if (res.status === 409 && attempt < 3) return new Promise(function (r) { setTimeout(r, 1500 * attempt); }).then(function () { return put(attempt + 1); });
+        if (!res.ok) return res.text().then(function (t) { throw new Error("GitHub " + res.status + " " + t.slice(0, 120)); });
+        status("Published \u2713 Phones will see it in about a minute.", true);
+      });
+    }
+    put(1).catch(function (err) { status("Failed: " + err.message, false); });
   }
 
   SC.loadConfig().then(function (c) {
