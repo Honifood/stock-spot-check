@@ -31,7 +31,17 @@
     });
   }
 
-  function build(sc, cfg) {
+  var LOGO = null;
+  function loadLogo() {
+    if (LOGO) return Promise.resolve();
+    return fetch("logo-white.png").then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) {
+      return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); });
+    }).then(function (d) {
+      return new Promise(function (res) { var im = new Image(); im.onload = function () { LOGO = { data: d, w: im.naturalWidth, h: im.naturalHeight }; res(); }; im.onerror = res; im.src = d; });
+    }).catch(function () {});
+  }
+  function build(sc, cfg) { return loadLogo().then(function () { return build2(sc, cfg); }); }
+  function build2(sc, cfg) {
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
     var W = 210, H = 297, M = 12, CW = W - 2 * M, BOT = H - 14, ROW = 7.5, HEAD = 7;
@@ -53,7 +63,9 @@
     function header() {
       if (first) {
         col(BLUE, "fill"); doc.rect(0, 0, W, 26, "F"); col(PINK, "fill"); doc.rect(0, 26, W, 1.2, "F");
-        text("HONI", M, 9.5, 13, true, [255, 255, 255]); text("POKE", M, 15, 13, true, [255, 255, 255]);
+        var lg = LOGO && LOGO.w ? true : false;
+        if (lg) { try { doc.addImage(LOGO.data, "PNG", M, 5, 36, 36 * LOGO.h / LOGO.w); } catch (e) { lg = false; } }
+        if (!lg) { text("HONI", M, 9.5, 13, true, [255, 255, 255]); text("POKE", M, 15, 13, true, [255, 255, 255]); }
         text("Stock Spot Check", M, 23.5, 19, true, [255, 255, 255]);
         doc.setFont("helvetica", "bold"); doc.setFontSize(8); col(PINK, "text"); doc.setCharSpace(1.2);
         var otw = doc.getTextWidth("OPERATIONS TEAM") + 14 * 1.2;
@@ -123,6 +135,7 @@
       }
     }
     function drawCatPart(cat, x, w, startRow, rows, forceRows) {
+      if (cat.na) { cat = { name: cat.name, lines: [{ name: "Not used in this shop", system: "", counted: "" }] }; }
       var cw = 15, nameW = w - cw * 3, n = forceRows || rows, top = y, h = HEAD + n * ROW, base = ROW * 0.68;
       cardHeader(x, w, cat.name + (startRow > 0 ? " (cont.)" : ""), false, true);
       col(BLUE, "draw"); doc.setLineWidth(0.5); doc.roundedRect(x, top, w, h, 2.4, 2.4, "S");
@@ -162,7 +175,7 @@
 
     function categories() {
       var gap = 4, hw = (CW - gap) / 2;
-      var items = sc.categories.map(function (c) { return { type: "cat", cat: c, small: c.lines.length <= 8 }; });
+      var items = sc.categories.map(function (c) { if (c.na) c = { name: c.name, na: true, lines: [{}], photos: c.photos }; return { type: "cat", cat: c, small: c.lines.length <= 8 }; });
       if (cfg.wastage !== false) items.push({ type: "waste", small: wasteLines(hw).length <= 2 });
       var i = 0;
       while (i < items.length) {

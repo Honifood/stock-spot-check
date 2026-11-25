@@ -75,6 +75,7 @@
   function progress(c) {
     var need = cfg.mandatoryLines || 3, total = 0, done = 0;
     c.categories.forEach(function (cat) {
+      if (cat.na) { total += need; done += need; return; }
       for (var i = 0; i < need; i++) { total++; var l = cat.lines[i]; if (l && l.name.trim() && SC.num(l.system) !== null && SC.num(l.counted) !== null) done++; }
     });
     return { total: total, done: done };
@@ -210,8 +211,10 @@
     h += "<div class='sec'><span class='num'>2</span><h3>Line-by-line check: " + (cfg.mandatoryLines || 3) + " lines per category</h3><span class='rule'></span></div>";
     c.categories.forEach(function (cat, ci) {
       h += "<div class='card blue'><div class='card-head'><span class='t'>" + esc(cat.name) + "</span><span class='cols'><span>System</span><span>Counted</span><span>Var.</span></span></div><div class='card-body'>";
-      cat.lines.forEach(function (l, li) { h += lineHtml(ci, li, l); });
-      h += "<div class='actions'><button class='btn light small' data-addline='" + ci + "'>+ Add line</button>" + (cat.custom ? "<button class='btn danger small' data-rmcat='" + ci + "'>Remove category</button>" : "") + "</div>" + photosHtml("c" + ci, cat.photos) + "</div></div>";
+      h += "<label class='na'><input type='checkbox' data-na='" + ci + "'" + (cat.na ? " checked" : "") + "> Not used in this shop</label>";
+      if (cat.na) h += "<p class='muted' style='margin:4px 0 10px'>Marked as not applicable &mdash; no lines needed. Untick to count it.</p>";
+      else cat.lines.forEach(function (l, li) { h += lineHtml(ci, li, l); });
+      h += "<div class='actions'>" + (cat.na ? "" : "<button class='btn light small' data-addline='" + ci + "'>+ Add line</button>") + (cat.custom ? "<button class='btn danger small' data-rmcat='" + ci + "'>Remove category</button>" : "") + "</div>" + photosHtml("c" + ci, cat.photos) + "</div></div>";
     });
     if (cfg.wastage !== false) {
       h += "<div class='card blue'><div class='card-head pink'><span class='t'>Weekly wastage (shop visit)</span></div><div class='card-body'>" +
@@ -282,6 +285,7 @@
     root.addEventListener("change", function (e) {
       var t = e.target;
       if (t.dataset.f === "store" || t.dataset.f === "date") { sc[t.dataset.f] = t.value; t.classList.remove("invalid"); queueSave(); }
+      if (t.dataset.na !== undefined) { sc.categories[+t.dataset.na].na = t.checked; queueSave(); renderForm(); return; }
       if (t.dataset.addph) {
         var files = Array.prototype.slice.call(t.files), key = t.dataset.addph, target = sc, added = 0, failed = 0;
         if (!files.length) return;
@@ -345,6 +349,7 @@
     if (!sc.opsManager.trim()) errs.push({ m: "Enter the ops manager name", q: "[data-f=opsManager]" });
     if (!sc.date) errs.push({ m: "Enter the date", q: "[data-f=date]" });
     sc.categories.forEach(function (cat, ci) {
+      if (cat.na) return;
       var miss = 0, first = null;
       for (var i = 0; i < need; i++) {
         var l = cat.lines[i] || { name: "", system: "", counted: "" };

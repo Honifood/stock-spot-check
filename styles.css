@@ -107,3 +107,7 @@ details.calc summary { font-weight: 700; color: var(--blue); }
 .save-banner { position: fixed; left: 0; right: 0; top: 0; z-index: 60; background: #d33b3b; color: #fff; font-weight: 700; padding: 10px 14px; text-align: center; }
 input::placeholder, textarea::placeholder { font-size: 13px; }
 .ph input { font-size: 16px; }
+
+.na { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 2px 0 10px; color: var(--blue); }
+.na input { width: 20px; height: 20px; }
+.logo-img { height: 22px; width: auto; display: block; }
