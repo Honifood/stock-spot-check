@@ -1,5 +1,5 @@
 // Bump CACHE_NAME on every release (admin "Publish" in GitHub = new commit; change this string to ship app code changes).
-var CACHE_NAME = "spot-check-v5";
+var CACHE_NAME = "spot-check-v6";
 var ASSETS = [
   "./", "./index.html", "./admin.html", "./styles.css", "./app.js", "./common.js", "./pdf.js",
   "./admin.js", "./vendor/jspdf.umd.min.js", "./manifest.json", "./icon-192.png", "./icon-512.png"
@@ -14,7 +14,7 @@ self.addEventListener("install", function (e) {
 
 self.addEventListener("activate", function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (k) { return k !== CACHE_NAME; }).map(function (k) { return caches.delete(k); }));
+    return Promise.all(keys.filter(function (k) { return k.indexOf("spot-check-") === 0 && k !== CACHE_NAME; }).map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
 

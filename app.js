@@ -53,8 +53,21 @@
       actions: "", storeManager: "", sigOps: null, sigStore: null
     };
   }
-  function persist() { sc.updatedAt = Date.now(); return SC.store.put(sc).then(function () { var s = $("#saved"); if (s) s.textContent = "Saved ✓"; }); }
-  function queueSave() { var s = $("#saved"); if (s) s.textContent = "Saving…"; clearTimeout(saveTimer); saveTimer = setTimeout(persist, 350); }
+  function saveBanner(msg) { var b = $("#save-banner"); if (!b) return; if (msg) { b.textContent = msg; b.hidden = false; } else b.hidden = true; }
+  // Resolves true when saved, false when NOT saved (the user is always told).
+  function persist(target) {
+    target = target || sc; if (!target) return Promise.resolve(true);
+    target.updatedAt = Date.now();
+    return SC.store.put(target).then(function () {
+      saveBanner(null); var s = $("#saved"); if (s) { s.textContent = "Saved \u2713"; s.style.color = ""; } return true;
+    }).catch(function (err) {
+      var quota = err && (err.name === "QuotaExceededError" || /quota/i.test(String(err.message || err)));
+      saveBanner(quota ? "NOT SAVED - this phone's storage is full. Export and delete old spot checks or remove photos." : "NOT SAVED - could not write to this phone's storage. Do not close the app; export the PDF now.");
+      var s = $("#saved"); if (s) { s.textContent = "NOT SAVED"; s.style.color = "#d33b3b"; }
+      return false;
+    });
+  }
+  function queueSave() { var s = $("#saved"); if (s) { s.textContent = "Saving\u2026"; s.style.color = ""; } if (sc && sc.status === "exported") sc.status = "draft"; clearTimeout(saveTimer); saveTimer = setTimeout(function () { persist(); }, 150); }
   function flush() { if (sc && !$("#screen-form").hidden) { clearTimeout(saveTimer); persist(); } }
   document.addEventListener("visibilitychange", function () { if (document.hidden) flush(); });
   window.addEventListener("pagehide", flush);
@@ -68,10 +81,21 @@
   }
 
   /* ---------------- home ---------------- */
+  function homeError(err) {
+    $("#screen-home").innerHTML = "<div class='card'><h3 style='color:#d33b3b;margin-top:0'>Cannot open saved spot checks</h3><p>This browser is blocking storage (private browsing, or storage is full/disabled). Open the app in a normal (non-private) tab, or free up space, then try again.</p><button class='btn' id='btn-retry'>Try again</button></div>";
+    $("#btn-retry").onclick = function () { location.reload(); };
+  }
+  function iosTip() {
+    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+    var dismissed = false; try { dismissed = localStorage.getItem("sc_iostip") === "1"; } catch (e) {}
+    if (!ios || standalone || dismissed) return "";
+    return "<div class='card' style='border-color:#F04C86'><b>Keep your drafts safe</b><p class='muted' style='margin:6px 0'>On iPhone, Safari can delete data from websites you do not use for a week. Tap <b>Share</b> &rarr; <b>Add to Home Screen</b> and open the app from the new icon.</p><button class='btn light small' id='btn-tipx'>Got it</button></div>";
+  }
   function renderHome() {
     SC.store.all().then(function (list) {
       var max = cfg.maxSaved || 10;
-      var h = "<h2>Spot checks on this phone <span class='muted'>(" + list.length + "/" + max + ")</span></h2>";
+      var h = iosTip() + "<h2>Spot checks on this phone <span class='muted'>(" + list.length + "/" + max + ")</span></h2>";
       h += "<button class='btn pink' id='btn-new'>+ New spot check</button><div style='height:14px'></div>";
       if (!list.length) h += "<div class='empty'>Nothing saved yet.<br>Start a spot check &mdash; it is saved automatically as you type, so you can leave and come back.</div>";
       list.forEach(function (c) {
@@ -85,23 +109,24 @@
       h += "<div class='ver'><div class='muted'>Version " + SC.BUILD + "</div><button id='btn-checkupd'>Check for the latest version</button></div>";
       $("#screen-home").innerHTML = h;
       $("#btn-checkupd").onclick = checkUpdate;
+      var tx = $("#btn-tipx"); if (tx) tx.onclick = function () { try { localStorage.setItem("sc_iostip", "1"); } catch (e) {} renderHome(); };
       $("#btn-new").onclick = function () {
         if (list.length >= max) { infoBox("Storage full", "<p>You can keep up to <b>" + max + "</b> spot checks on this phone. Export or delete one first.</p>"); return; }
-        sc = newCheck(); persist().then(function () { openForm(); });
+        sc = newCheck(); persist().then(function (ok) { if (ok) openForm(); else { infoBox("Cannot start a spot check", "<p>Nothing can be saved on this phone right now (storage full or blocked). Free up space and try again.</p>"); sc = null; } });
       };
       Array.prototype.forEach.call(document.querySelectorAll("[data-open]"), function (el) {
         el.onclick = function (e) {
           if (e.target.closest("[data-del]")) return;
-          SC.store.get(el.getAttribute("data-open")).then(function (c) { sc = c; openForm(); });
+          SC.store.get(el.getAttribute("data-open")).then(function (c) { if (!c) { renderHome(); return; } sc = c; openForm(); }).catch(homeError);
         };
       });
       Array.prototype.forEach.call(document.querySelectorAll("[data-del]"), function (el) {
         el.onclick = function () {
           var id = el.getAttribute("data-del");
-          confirmBox("Delete spot check?", "This permanently removes it (and its photos) from this phone.", "Delete", true).then(function (ok) { if (ok) SC.store.del(id).then(renderHome); });
+          confirmBox("Delete spot check?", "This permanently removes it (and its photos) from this phone.", "Delete", true).then(function (ok) { if (ok) SC.store.del(id).then(renderHome, function () { infoBox("Could not delete", "<p>Try again.</p>"); }); });
         };
       });
-    });
+    }).catch(homeError);
     show("home");
   }
 
@@ -116,17 +141,18 @@
     h += "</div><label class='addphoto'>&#128247; Add photos<input type='file' accept='image/*' multiple data-addph='" + key + "'></label>";
     return h;
   }
-  function photoArr(key) {
-    if (key === "general") return sc.generalPhotos;
-    if (key === "wastage") return sc.wastage.photos;
-    return sc.categories[parseInt(key.slice(1), 10)].photos;
+  function photoArrOf(d, key) {
+    if (key === "general") return d.generalPhotos;
+    if (key === "wastage") return d.wastage.photos;
+    return d.categories[parseInt(key.slice(1), 10)].photos;
   }
+  function photoArr(key) { return photoArrOf(sc, key); }
   function lineHtml(ci, li, l) {
     var need = cfg.mandatoryLines || 3, req = li < need, v = SC.variance(l);
     return "<div class='line'><div class='row'>" +
       "<div class='nm'><input type='text' placeholder='Item' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'></div>" +
-      "<input class='num' type='text' inputmode='decimal' placeholder='System' value='" + esc(l.system) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='system' data-req='" + (req ? 1 : 0) + "'>" +
-      "<input class='num' type='text' inputmode='decimal' placeholder='Counted' value='" + esc(l.counted) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='counted' data-req='" + (req ? 1 : 0) + "'>" +
+      "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='System' value='" + esc(l.system) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='system' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",system' aria-label='Toggle minus'>&plusmn;</button></div>" +
+      "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='Counted' value='" + esc(l.counted) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='counted' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",counted' aria-label='Toggle minus'>&plusmn;</button></div>" +
       "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v)) + "</div></div>" +
       (req ? "" : "<div style='text-align:right'><button class='x' style='font-size:13px' data-rmline='" + ci + "," + li + "'>Remove line</button></div>") + "</div>";
   }
@@ -208,14 +234,14 @@
 
   function initSig(id, key) {
     var cv = document.getElementById(id), dpr = window.devicePixelRatio || 1;
-    var w = cv.clientWidth, hh = cv.clientHeight; cv.width = w * dpr; cv.height = hh * dpr;
+    var w = cv.clientWidth || cv.parentNode.clientWidth || 300, hh = cv.clientHeight || 130; cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
     var ctx = cv.getContext("2d"); ctx.scale(dpr, dpr); ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#16316d";
     if (sc[key]) { var im = new Image(); im.onload = function () { ctx.drawImage(im, 0, 0, w, hh); }; im.src = sc[key]; }
     var drawing = false, lx = 0, ly = 0;
     function pos(e) { var r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
     cv.addEventListener("pointerdown", function (e) { drawing = true; cv.setPointerCapture(e.pointerId); var p = pos(e); lx = p[0]; ly = p[1]; ctx.beginPath(); ctx.arc(lx, ly, 1, 0, 6.3); ctx.stroke(); e.preventDefault(); });
     cv.addEventListener("pointermove", function (e) { if (!drawing) return; var p = pos(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p[0], p[1]); ctx.stroke(); lx = p[0]; ly = p[1]; e.preventDefault(); });
-    function end() { if (!drawing) return; drawing = false; sc[key] = cv.toDataURL("image/png"); queueSave(); }
+    function end() { if (!drawing) return; drawing = false; if (!cv.width || !cv.height) return; var d = cv.toDataURL("image/png"); if (d && d.length > 200) { sc[key] = d; queueSave(); } }
     cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
   }
 
@@ -228,7 +254,7 @@
         cv.toBlob(function (b) { b ? resolve({ id: SC.uid(), blob: b, w: cw, h: ch, caption: "" }) : reject(new Error("blob")); }, "image/jpeg", 0.85);
       }
       if (window.createImageBitmap) {
-        createImageBitmap(file, { imageOrientation: "from-image" }).then(function (b) { draw(b, b.width, b.height); }, fallback);
+        createImageBitmap(file, { imageOrientation: "from-image" }).then(function (b) { try { draw(b, b.width, b.height); } finally { if (b.close) b.close(); } }, fallback);
       } else fallback();
       function fallback() {
         var im = new Image(), u = URL.createObjectURL(file);
@@ -257,15 +283,29 @@
       var t = e.target;
       if (t.dataset.f === "store" || t.dataset.f === "date") { sc[t.dataset.f] = t.value; t.classList.remove("invalid"); queueSave(); }
       if (t.dataset.addph) {
-        var files = Array.prototype.slice.call(t.files), key = t.dataset.addph;
+        var files = Array.prototype.slice.call(t.files), key = t.dataset.addph, target = sc, added = 0, failed = 0;
         if (!files.length) return;
-        toast("Adding photos…");
-        files.reduce(function (p, f) { return p.then(function () { return processPhoto(f).then(function (ph) { photoArr(key).push(ph); }); }); }, Promise.resolve())
-          .then(function () { return persist(); }).then(function () { renderForm(); }).catch(function () { toast("Could not add that photo"); });
+        toast("Adding photos\u2026");
+        files.reduce(function (p, f) {
+          return p.then(function () {
+            return processPhoto(f).then(function (ph) { photoArrOf(target, key).push(ph); added++; }, function () { failed++; });
+          });
+        }, Promise.resolve()).then(function () { return persist(target); }).then(function (saved) {
+          if (sc === target && !$("#screen-form").hidden) renderForm();
+          if (failed) toast(added + " of " + files.length + " added - " + failed + " could not be read");
+          else if (saved) toast(added + (added === 1 ? " photo added" : " photos added"));
+        });
       }
     });
     root.addEventListener("click", function (e) {
       var t = e.target.closest("button"); if (!t) return;
+      if (t.dataset.neg) {
+        var np = t.dataset.neg.split(","), nl = sc.categories[+np[0]].lines[+np[1]], cur = String(nl[np[2]] || "");
+        nl[np[2]] = cur.charAt(0) === "-" ? cur.slice(1) : "-" + cur;
+        var ni = root.querySelector("[data-ci='" + np[0] + "'][data-li='" + np[1] + "'][data-k='" + np[2] + "']"); ni.value = nl[np[2]];
+        var nv = SC.variance(nl), nel = $("#var-" + np[0] + "-" + np[1]); nel.textContent = nv === null ? "\u2013" : SC.fmtVar(nv); nel.className = "var " + (nv < 0 ? "neg" : nv > 0 ? "pos" : "");
+        queueSave(); return;
+      }
       if (t.dataset.addline !== undefined) { sc.categories[+t.dataset.addline].lines.push({ id: SC.uid(), name: "", system: "", counted: "" }); persist(); renderForm(); }
       else if (t.dataset.rmline) {
         var p = t.dataset.rmline.split(","); sc.categories[+p[0]].lines.splice(+p[1], 1); persist(); renderForm();
@@ -291,7 +331,12 @@
     });
   }
 
-  function openForm() { renderForm(); show("form"); }
+  function openForm() {
+    // old drafts: pad lines up to the current "mandatory lines" setting
+    var need = cfg.mandatoryLines || 3;
+    sc.categories.forEach(function (cat) { while (cat.lines.length < need) cat.lines.push({ id: SC.uid(), name: "", system: "", counted: "" }); });
+    show("form"); renderForm();   // show first: canvases need a real size to measure
+  }
 
   /* ---------------- validation + export ---------------- */
   function validate() {
@@ -302,7 +347,7 @@
     sc.categories.forEach(function (cat, ci) {
       var miss = 0, first = null;
       for (var i = 0; i < need; i++) {
-        var l = cat.lines[i];
+        var l = cat.lines[i] || { name: "", system: "", counted: "" };
         ["name", "system", "counted"].forEach(function (k) {
           var bad = k === "name" ? !l.name.trim() : SC.num(l[k]) === null;
           if (bad) { miss++; var q = "[data-ci='" + ci + "'][data-li='" + i + "'][data-k='" + k + "']"; var el = $(q); if (el) el.classList.add("invalid"); if (!first) first = q; }
@@ -317,6 +362,12 @@
     if (!String(sc.totalStock).trim()) w.push("Total stock value is empty");
     if (!String(sc.sales).trim()) w.push("Vitamojo gross sales is empty");
     if (!String(sc.gp).trim()) w.push("GP % is empty");
+    if (!sc.sigOps) w.push("Ops manager signature is missing");
+    if (!sc.sigStore) w.push("Store manager signature is missing");
+    var texts = [sc.store, sc.opsManager, sc.storeManager, sc.period, sc.gpNotes, sc.actions, sc.wastage.notes, sc.wastage.amount];
+    sc.categories.forEach(function (c) { texts.push(c.name); c.lines.forEach(function (l) { texts.push(l.name, l.system, l.counted); }); c.photos.forEach(function (p) { texts.push(p.caption); }); });
+    sc.wastage.photos.concat(sc.generalPhotos).forEach(function (p) { texts.push(p.caption); });
+    if (texts.some(function (x) { return /[^\u0000-\u00FF\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2192\u2212]/.test(String(x || "")); })) w.push("Some characters (emoji or non-Latin letters) cannot be printed in the PDF and will appear as ?");
     return w;
   }
   function exportPdf() {
@@ -349,23 +400,27 @@
       "<button class='btn danger' id='d-del'>Delete this spot check from the phone</button>" +
       "<p class='muted center'>After you save or share the PDF you will be asked whether to delete the spot check.</p>";
     $("#d-share").onclick = sharePdf;
+    if (window.navigator.standalone === true) $("#d-open").hidden = true;   // iOS home-screen apps cannot navigate back from a PDF tab
     $("#d-open").onclick = function () { window.open(URL.createObjectURL(pdfBlob), "_blank"); };
     $("#d-back").onclick = function () { openForm(); };
-    $("#d-del").onclick = askDelete;
+    $("#d-del").onclick = function () { askDelete(); };
     show("done");
   }
   function sharePdf() {
     var file = new File([pdfBlob], pdfName, { type: "application/pdf" });
     function download() {
       var a = document.createElement("a"); a.href = URL.createObjectURL(pdfBlob); a.download = pdfName; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(askDelete, 800);
+      setTimeout(function () { askDelete(true); }, 1200);
     }
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: pdfName }).then(askDelete).catch(function (e) { if (e && e.name !== "AbortError") download(); });
+      navigator.share({ files: [file], title: pdfName }).then(function () { askDelete(); }).catch(function (e) { if (e && e.name !== "AbortError") download(); });
     } else download();
   }
-  function askDelete() {
-    confirmBox("Delete from this phone?", "Only delete if you have saved or sent the PDF. This removes the spot check and its photos from this phone.", "Yes, delete", true).then(function (ok) {
+  function askDelete(afterDownload) {
+    var q = afterDownload === true
+      ? confirmBox("Did the PDF save?", "Check your Downloads or Files app. Only delete the spot check if you can see the PDF there. This removes the spot check and its photos from this phone.", "Yes, I have the PDF - delete", true)
+      : confirmBox("Delete from this phone?", "Only delete if you have saved or sent the PDF. This removes the spot check and its photos from this phone.", "Yes, delete", true);
+    q.then(function (ok) {
       if (!ok) return;
       SC.store.del(sc.id).then(function () { sc = null; pdfBlob = null; toast("Deleted"); renderHome(); });
     });
@@ -401,7 +456,8 @@
       });
       reg.update().catch(function () {});
     }).catch(function () {});
-    navigator.serviceWorker.addEventListener("controllerchange", function () { if (!reloading) { reloading = true; location.reload(); } });
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener("controllerchange", function () { if (hadController && !reloading) { reloading = true; location.reload(); } });
     document.addEventListener("visibilitychange", function () { if (!document.hidden && swReg) swReg.update().catch(function () {}); });
   }
   $("#btn-update-now").onclick = applyUpdate;

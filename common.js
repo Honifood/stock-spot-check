@@ -1,19 +1,83 @@
 /* Shared helpers: config loading, IndexedDB storage, number helpers */
 (function () {
   var DEFAULT_CONFIG = {
-    version: 1, appTitle: "Stock Spot Check", mandatoryLines: 3, maxSaved: 10, wastage: true, adminPinHash: "",
-    shops: [], categories: [{ id: "protein", name: "Protein", lines: ["Salmon"] }]
+    version: 0, appTitle: "Stock Spot Check", mandatoryLines: 3, maxSaved: 10, wastage: true, adminPinHash: "",
+    shops: [
+      "HP02 Fenchurch Honi Poke",
+      "HP03 Margaret Honi Poke",
+      "HP04 Chancery Honi Poke",
+      "HP05 Angel Honi Poke",
+      "HP05 Angel Sushi",
+      "HP06 Fleet Honi Poke",
+      "HP07 Victoria Honi Poke",
+      "HP08 Westfield Honi Poke",
+      "HP09 Selfridges Honi Poke",
+      "HP10 Jerdan Place Honi Poke",
+      "HP10 Jerdan Place Sushi",
+      "HP11 South Bank Honi Poke",
+      "HP11 South Bank Sushi",
+      "HP12 Bishopsgate Honi Poke",
+      "HP13 Paddington Honi Poke",
+      "HP14 Farringdon Honi Poke",
+      "HP14 Farringdon Sushi",
+      "HP15 Battersea Honi Poke",
+      "HP15 Battersea Sushi",
+      "HP16 Manchester Honi Poke",
+      "HP17 St Paul Honi Poke",
+      "HP18 Moorgate Honi Poke",
+      "HP19 Leeds Honi Poke",
+      "HP20 Banksite Honi Poke",
+      "HP21 New Street Honi Poke",
+      "HP21 New Street Sushi",
+      "HP23 High Holborn Honi Poke",
+      "HP24 St Mary Axe Honi Poke",
+      "HP26 Fitzrovia Honi Poke",
+      "HP27 Canary Wharf Honi Poke",
+      "HP28 Kingly Honi Poke",
+      "HP28 Kingly Sushi",
+      "HP29 Shoreditch Honi Poke",
+      "HP29 Shoreditch Sushi",
+      "HP30 Broadgate Honi Poke",
+      "HP31 Victoria 2 Honi Poke",
+      "HP32 Fenchurch 2 Honi Poke"
+],
+    categories: [
+      { id: "protein", name: "Protein", lines: ["Salmon"] }, { id: "drinks", name: "Drinks", lines: [] },
+      { id: "chemicals", name: "Chemicals", lines: [] }, { id: "packaging", name: "Packaging", lines: [] },
+      { id: "batch-sauces", name: "Batch sauces", lines: [] }
+    ]
   };
 
-  function loadConfig() {
+  function validCfg(c) {
+    return !!c && typeof c === "object" && !Array.isArray(c) &&
+      Array.isArray(c.shops) && c.shops.length > 0 && c.shops.every(function (s) { return typeof s === "string" && s.trim(); }) &&
+      Array.isArray(c.categories) && c.categories.length > 0 && c.categories.every(function (k) { return k && typeof k.name === "string" && k.name.trim(); });
+  }
+  function normCfg(c) {
+    var n = JSON.parse(JSON.stringify(c));
+    n.shops = n.shops.map(function (s) { return s.replace(/\s+/g, " ").trim(); });
+    n.categories = n.categories.map(function (k, i) {
+      return { id: k.id || ("cat-" + i), name: k.name.trim(), lines: Array.isArray(k.lines) ? k.lines.filter(function (l) { return typeof l === "string" && l.trim(); }) : [] };
+    });
+    n.mandatoryLines = Math.min(10, Math.max(1, parseInt(n.mandatoryLines, 10) || 3));
+    n.maxSaved = Math.min(30, Math.max(1, parseInt(n.maxSaved, 10) || 10));
+    n.wastage = n.wastage !== false;
+    return n;
+  }
+  function cachedConfig() { try { var c = JSON.parse(localStorage.getItem("sc_config")); if (validCfg(c)) return normCfg(c); } catch (e) {} return null; }
+  function fetchConfig() {
     return fetch("config.json", { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("config " + r.status); return r.json(); })
-      .then(function (c) { try { localStorage.setItem("sc_config", JSON.stringify(c)); } catch (e) {} return c; })
-      .catch(function () {
-        try { var s = localStorage.getItem("sc_config"); if (s) return JSON.parse(s); } catch (e) {}
-        return DEFAULT_CONFIG;
-      });
+      .then(function (c) { if (!validCfg(c)) throw new Error("invalid config"); try { localStorage.setItem("sc_config", JSON.stringify(c)); } catch (e) {} return c; });
   }
+  // Never blocks the app: waits at most 3 s for the network (shop floors have poor signal), then uses the last good copy.
+  function loadConfig() {
+    var net = fetchConfig().then(normCfg, function () { return null; });
+    var timer = new Promise(function (res) { setTimeout(function () { res(null); }, 3000); });
+    return Promise.race([net, timer]).then(function (c) { return c || cachedConfig() || normCfg(DEFAULT_CONFIG); });
+  }
+  // Admin must edit the real, current config: no silent fallback to defaults.
+  function loadConfigStrict() { return fetchConfig(); }
 
   // ---- IndexedDB (drafts incl. photo blobs) ----
   var dbPromise = null;
@@ -49,13 +113,16 @@
 
   function num(v) {
     if (v === null || v === undefined) return null;
-    var s = String(v).replace(/[\u00A3\s]/g, "");
+    var s = String(v).replace(/[\u00A3\s]/g, "").replace(/[\u2212\u2013\u2014]/g, "-");
     if (s === "") return null;
-    // UK thousands separators: 4,200 -> 4200 ; decimal comma: 4,5 -> 4.5
-    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?/.test(s)) s = s.replace(/,/g, "");
-    else s = s.replace(/,/g, ".");
-    var n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
-    return isNaN(n) ? null : n;
+    var m = s.match(/^(-?(?:[0-9]|\.[0-9])[0-9,.]*)([A-Za-z%]*)$/);   // number with optional unit (12kg); anything else is invalid
+    if (!m) return null;
+    var n = m[1];
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(n)) n = n.replace(/,/g, "");  // UK thousands: 4,200
+    else n = n.replace(/,/g, ".");                                            // decimal comma: 4,5
+    if (!/^-?(\d+(\.\d+)?|\.\d+)$/.test(n)) return null;
+    var x = parseFloat(n);
+    return isNaN(x) ? null : x;
   }
   function fmtNum(n) {
     if (n === null || n === undefined || isNaN(n)) return "";
@@ -76,5 +143,5 @@
     });
   }
 
-  window.SC = { BUILD: "1.1.3", loadConfig: loadConfig, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  window.SC = { BUILD: "1.2.0", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();

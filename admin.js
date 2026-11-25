@@ -104,6 +104,7 @@
   function publish() {
     var o = $("#g-owner").value.trim(), r = $("#g-repo").value.trim(), b = $("#g-branch").value.trim() || "main", tk = $("#g-token").value.trim();
     if (!o || !r || !tk) { status("Owner, repository and token are required.", false); return; }
+    if (!SC.validCfg(cfg)) { status("Refusing to publish: the list needs at least one shop and one category, with no blank names.", false); return; }
     pref("owner", o); pref("repo", r); pref("branch", b); pref("token", tk);
     var url = "https://api.github.com/repos/" + o + "/" + r + "/contents/config.json", hd = { Authorization: "Bearer " + tk, Accept: "application/vnd.github+json" };
     status("Publishing\u2026", true);
@@ -120,14 +121,16 @@
       }).then(function (res) {
         if (res.status === 409 && attempt < 3) return new Promise(function (r) { setTimeout(r, 1500 * attempt); }).then(function () { return put(attempt + 1); });
         if (!res.ok) return res.text().then(function (t) { throw new Error("GitHub " + res.status + " " + t.slice(0, 120)); });
-        status("Published \u2713 Phones will see it in about a minute.", true);
+        status("Published \u2713 GitHub can take 1-2 minutes to show it; phones then pick it up next time they open the app.", true);
       });
     }
     put(1).catch(function (err) { status("Failed: " + err.message, false); });
   }
 
-  SC.loadConfig().then(function (c) {
+  SC.loadConfigStrict().then(function (c) { c = SC.normCfg(c);
     cfg = c; cfg.shops = cfg.shops || []; cfg.categories = cfg.categories || [];
     if (sessionStorage.getItem("sc_adm") && cfg.adminPinHash) main(); else gate();
+  }).catch(function () {
+    document.body.innerHTML = "<div style='padding:24px;font-family:sans-serif'><h2>Cannot load the current settings</h2><p>Admin needs the live config.json to avoid publishing an outdated or empty list. Check your connection and reload.</p><button onclick='location.reload()'>Reload</button></div>";
   });
 })();
