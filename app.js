@@ -130,17 +130,32 @@
       "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v)) + "</div></div>" +
       (req ? "" : "<div style='text-align:right'><button class='x' style='font-size:13px' data-rmline='" + ci + "," + li + "'>Remove line</button></div>") + "</div>";
   }
+  function calcInputs() {
+    var c = sc.calc, closingRaw = String(c.closing).trim() ? c.closing : sc.totalStock;
+    var v = { opening: SC.num(c.opening), purchases: SC.num(c.purchases), tin: SC.num(c.tin), tout: SC.num(c.tout), closing: SC.num(closingRaw), sales: SC.num(sc.sales) };
+    var missing = [];
+    if (v.opening === null) missing.push("Opening stock");
+    if (v.purchases === null) missing.push("Purchases");
+    if (v.closing === null) missing.push("Closing stock (or Total stock value above)");
+    if (v.sales === null || v.sales === 0) missing.push("Vitamojo gross sales above");
+    return { v: v, missing: missing };
+  }
   function calcResult() {
-    var c = sc.calc, s = SC.num(sc.sales);
-    var vals = [c.opening, c.purchases, c.tin, c.tout, c.closing].map(SC.num);
-    if (vals[0] === null || vals[1] === null || vals[4] === null || s === null || s === 0) return null;
-    var cost = vals[0] + vals[1] + (vals[2] || 0) - (vals[3] || 0) - vals[4];
-    var coi = cost / s * 100;
+    var i = calcInputs(); if (i.missing.length) return null;
+    var v = i.v, cost = v.opening + v.purchases + (v.tin || 0) - (v.tout || 0) - v.closing, coi = cost / v.sales * 100;
     return { cost: cost, coi: coi, gp: 100 - coi };
   }
   function calcText() {
     var r = calcResult();
-    return r ? "Cost of sales &pound;" + SC.fmtNum(r.cost) + " &middot; COI " + SC.fmtNum(r.coi) + "% &middot; <b>GP " + SC.fmtNum(r.gp) + "%</b>" : "Fill opening stock, purchases, closing stock and Vitamojo sales to calculate.";
+    if (r) return "Cost of sales &pound;" + SC.fmtNum(r.cost) + " &middot; COI " + SC.fmtNum(r.coi) + "% &middot; <b>GP " + SC.fmtNum(r.gp) + "%</b>" + (sc.gpManual ? "" : " &mdash; filled in above");
+    return "Still needed: " + calcInputs().missing.join(", ") + ".";
+  }
+  function updateCalc() {
+    var out = $("#calc-out"); if (out) out.innerHTML = calcText();
+    var r = calcResult();
+    if (r && !sc.gpManual) {
+      sc.gp = SC.fmtNum(r.gp); var gi = $("[data-f=gp]"); if (gi) gi.value = sc.gp;
+    }
   }
 
   function renderForm() {
@@ -161,9 +176,9 @@
       "<label class='f'>GP %<div class='money'><input type='text' inputmode='decimal' data-f='gp' value='" + esc(c.gp) + "' style='padding-left:12px'></div></label>" +
       "<div class='gpbox'><b>How to calculate GP</b><br>1. Cost of sales = Opening stock + Purchases + Transfers in &minus; Transfers out &minus; Closing stock<br>2. COI % = Cost of sales / Sales &times; 100<br>3. GP % = 100 &minus; COI %<br>Example: cost 30% &rarr; GP 70%</div>" +
       "<details class='calc'><summary>GP calculator (optional)</summary><div class='grid2' style='margin-top:10px'>" +
-      ["opening:Opening stock", "purchases:Purchases", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock"].map(function (s) {
+      ["opening:Opening stock", "purchases:Purchases", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock (blank = Total stock value)"].map(function (s) {
         var p = s.split(":"); return "<label class='f'>" + p[1] + " &pound;<input type='text' inputmode='decimal' data-calc='" + p[0] + "' value='" + esc(c.calc[p[0]]) + "'></label>";
-      }).join("") + "</div><p id='calc-out' class='muted'>" + calcText() + "</p><button class='btn light small' id='btn-usegp'>Use this GP %</button></details>" +
+      }).join("") + "</div><p id='calc-out' class='muted'>" + calcText() + "</p><button class='btn light small' id='btn-usegp'>Recalculate &amp; fill GP %</button></details>" +
       "<label class='f'>GP discussed with the team (notes)<textarea data-f='gpNotes'>" + esc(c.gpNotes) + "</textarea></label></div>";
 
     h += "<div class='sec'><span class='num'>2</span><h3>Line-by-line check: " + (cfg.mandatoryLines || 3) + " lines per category</h3><span class='rule'></span></div>";
@@ -227,8 +242,8 @@
     var root = $("#screen-form");
     root.addEventListener("input", function (e) {
       var t = e.target; t.classList.remove("invalid");
-      if (t.dataset.f) { sc[t.dataset.f] = t.value; if (t.dataset.f === "opsManager") { try { localStorage.setItem("sc_ops", t.value); } catch (er) {} } if (t.dataset.f === "sales") $("#calc-out").innerHTML = calcText(); }
-      else if (t.dataset.calc) { sc.calc[t.dataset.calc] = t.value; $("#calc-out").innerHTML = calcText(); }
+      if (t.dataset.f) { sc[t.dataset.f] = t.value; if (t.dataset.f === "opsManager") { try { localStorage.setItem("sc_ops", t.value); } catch (er) {} } if (t.dataset.f === "gp") sc.gpManual = true; if (t.dataset.f === "sales" || t.dataset.f === "totalStock") updateCalc(); }
+      else if (t.dataset.calc) { sc.calc[t.dataset.calc] = t.value; updateCalc(); }
       else if (t.dataset.w) { sc.wastage[t.dataset.w] = t.value; }
       else if (t.dataset.k) {
         var ci = +t.dataset.ci, li = +t.dataset.li, l = sc.categories[ci].lines[li]; l[t.dataset.k] = t.value;
@@ -270,7 +285,7 @@
         });
       } else if (t.id === "btn-usegp") {
         var r = calcResult(); if (!r) { toast("Fill the calculator first"); return; }
-        sc.gp = SC.fmtNum(r.gp); var gi = root.querySelector("[data-f=gp]"); gi.value = sc.gp; queueSave(); toast("GP % updated");
+        sc.gpManual = false; updateCalc(); queueSave(); toast("GP % updated");
       } else if (t.id === "btn-save") { clearTimeout(saveTimer); persist().then(function () { sc = null; renderHome(); }); }
       else if (t.id === "btn-export") exportPdf();
     });

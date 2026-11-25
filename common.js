@@ -48,8 +48,13 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
   function num(v) {
-    if (v === null || v === undefined || String(v).trim() === "") return null;
-    var n = parseFloat(String(v).replace(/,/g, ".").replace(/[^0-9.\-]/g, ""));
+    if (v === null || v === undefined) return null;
+    var s = String(v).replace(/[\u00A3\s]/g, "");
+    if (s === "") return null;
+    // UK thousands separators: 4,200 -> 4200 ; decimal comma: 4,5 -> 4.5
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?/.test(s)) s = s.replace(/,/g, "");
+    else s = s.replace(/,/g, ".");
+    var n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
     return isNaN(n) ? null : n;
   }
   function fmtNum(n) {
@@ -71,5 +76,5 @@
     });
   }
 
-  window.SC = { BUILD: "1.1.2", loadConfig: loadConfig, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  window.SC = { BUILD: "1.1.3", loadConfig: loadConfig, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();
