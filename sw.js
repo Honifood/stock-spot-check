@@ -1,8 +1,8 @@
 // Bump CACHE_NAME on every release (admin "Publish" in GitHub = new commit; change this string to ship app code changes).
-var CACHE_NAME = "spot-check-v7";
+var CACHE_NAME = "spot-check-v8";
 var ASSETS = [
   "./", "./index.html", "./admin.html", "./styles.css", "./app.js", "./common.js", "./pdf.js",
-  "./admin.js", "./vendor/jspdf.umd.min.js", "./manifest.json", "./logo-white.png", "./icon-192.png", "./icon-512.png"
+  "./admin.js", "./vendor/jspdf.umd.min.js", "./manifest.json", "./logo-white.png", "./apple-touch-icon.png", "./icon-192.png", "./icon-512.png"
 ];
 
 self.addEventListener("install", function (e) {
