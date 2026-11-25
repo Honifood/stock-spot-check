@@ -31,6 +31,7 @@
       h += "<div class='row2'><input type='text' value='" + esc(sh) + "' data-sname='" + i + "'>" +
         "<button class='x' data-sup='" + i + "'>&uarr;</button><button class='x' data-sdown='" + i + "'>&darr;</button><button class='x' data-rmshop='" + i + "'>&#10005;</button></div>";
     });
+    h += "<details class='calc' style='margin-top:12px'><summary>Edit whole list as text</summary><p class='muted'>One shop per line, in the order managers should see. Pasting here replaces the entire list.</p><textarea id='bulk' style='min-height:220px'>" + esc(cfg.shops.join("\n")) + "</textarea><button class='btn light small' id='applybulk' style='margin-top:8px'>Replace list</button></details>";
     h += "<div class='row2' style='margin-top:12px'><textarea id='newshop' style='min-height:48px;margin:0' placeholder='Add shop (or paste several, one per line)'></textarea><button class='btn small' id='addshop'>Add</button></div></div>";
 
     h += "<h2>Categories</h2>";
@@ -76,6 +77,7 @@
       if (t.dataset.rmshop) { var si = +t.dataset.rmshop; if (confirm("Remove " + cfg.shops[si] + "?")) { cfg.shops.splice(si, 1); main(); } }
       else if (t.dataset.sup) { var a = +t.dataset.sup; if (a > 0) { cfg.shops.splice(a - 1, 0, cfg.shops.splice(a, 1)[0]); main(); } }
       else if (t.dataset.sdown) { var b2 = +t.dataset.sdown; if (b2 < cfg.shops.length - 1) { cfg.shops.splice(b2 + 1, 0, cfg.shops.splice(b2, 1)[0]); main(); } }
+      else if (t.id === "applybulk") { var seen = {}, ls = $("#bulk").value.split("\n").map(function (x) { return x.trim(); }).filter(function (x) { if (!x || seen[x.toLowerCase()]) return false; seen[x.toLowerCase()] = 1; return true; }); if (!ls.length) { alert("The list is empty."); return; } cfg.shops = ls; main(); }
       else if (t.id === "addshop") { addShops($("#newshop").value); main(); }
       else if (t.dataset.rmcat) { if (confirm("Remove category " + cfg.categories[+t.dataset.rmcat].name + "?")) { cfg.categories.splice(+t.dataset.rmcat, 1); main(); } }
       else if (t.dataset.up) { var i = +t.dataset.up; if (i > 0) { cfg.categories.splice(i - 1, 0, cfg.categories.splice(i, 1)[0]); main(); } }
