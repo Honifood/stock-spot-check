@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "appTitle": "Stock Spot Check",
+  "mandatoryLines": 3,
+  "maxSaved": 10,
+  "wastage": true,
+  "adminPinHash": "",
+  "shops": [
+    "Angel", "Baker Street", "Banksite", "Battersea", "Bishopsgate", "Bow Lane IP", "Bristol",
+    "Broadgate", "Canary Wharf", "Chancery Lane", "Fenchurch", "Fenchurch Street", "Farringdon",
+    "Fitzrovia", "Fleet Place", "Fulham", "High Holborn", "Kingly", "Leeds", "Manchester",
+    "Margaret", "Moorgate", "New Street", "Paddington", "Selfridges", "Shoreditch", "Southbank",
+    "St Mary's Axe", "St Paul", "Victoria", "Victoria IP", "Westfield"
+  ],
+  "categories": [
+    { "id": "protein", "name": "Protein", "lines": ["Salmon"] },
+    { "id": "drinks", "name": "Drinks", "lines": [] },
+    { "id": "chemicals", "name": "Chemicals", "lines": [] },
+    { "id": "packaging", "name": "Packaging", "lines": [] },
+    { "id": "batch-sauces", "name": "Batch sauces", "lines": [] }
+  ]
+}

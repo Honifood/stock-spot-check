@@ -1,0 +1,401 @@
+/* Honi Poke Stock Spot Check - operations manager app */
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var cfg = null, sc = null, saveTimer = null, pdfBlob = null, pdfName = "";
+  var urls = {};
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function today() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function fmtDate(iso) { if (!iso) return ""; var p = iso.split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
+  function toast(msg) { var t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 2200); }
+
+  function modal(html, onMount) {
+    var m = $("#modal"); $("#modal-card").innerHTML = html; m.hidden = false;
+    if (onMount) onMount($("#modal-card"));
+  }
+  function closeModal() { $("#modal").hidden = true; }
+  function confirmBox(title, text, okLabel, danger) {
+    return new Promise(function (resolve) {
+      modal("<h3>" + esc(title) + "</h3><p>" + text + "</p><div class='actions'><button class='btn " + (danger ? "danger" : "") + " small' id='m-ok'>" + esc(okLabel) + "</button><button class='btn light small' id='m-cancel'>Cancel</button></div>", function (c) {
+        $("#m-ok", c).onclick = function () { closeModal(); resolve(true); };
+        $("#m-cancel", c).onclick = function () { closeModal(); resolve(false); };
+      });
+    });
+  }
+  function infoBox(title, html) {
+    return new Promise(function (resolve) {
+      modal("<h3>" + esc(title) + "</h3>" + html + "<div class='actions'><button class='btn small' id='m-ok'>OK</button></div>", function (c) {
+        $("#m-ok", c).onclick = function () { closeModal(); resolve(); };
+      });
+    });
+  }
+
+  function show(name) {
+    ["home", "form", "done"].forEach(function (n) { $("#screen-" + n).hidden = n !== name; });
+    $("#btn-home").hidden = name === "home";
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------------- model ---------------- */
+  function blankLines(names) {
+    var out = [], n = Math.max(cfg.mandatoryLines || 3, names.length);
+    for (var i = 0; i < n; i++) out.push({ id: SC.uid(), name: names[i] || "", system: "", counted: "" });
+    return out;
+  }
+  function newCheck() {
+    var ops = ""; try { ops = localStorage.getItem("sc_ops") || ""; } catch (e) {}
+    return {
+      id: SC.uid(), createdAt: Date.now(), updatedAt: Date.now(), status: "draft",
+      store: "", opsManager: ops, date: today(), period: "", totalStock: "", sales: "", gp: "",
+      calc: { opening: "", purchases: "", tin: "", tout: "", closing: "" }, gpNotes: "",
+      categories: (cfg.categories || []).map(function (c) { return { id: SC.uid(), name: c.name, custom: false, lines: blankLines(c.lines || []), photos: [] }; }),
+      wastage: { amount: "", notes: "", photos: [] }, generalPhotos: [],
+      actions: "", storeManager: "", sigOps: null, sigStore: null
+    };
+  }
+  function persist() { sc.updatedAt = Date.now(); return SC.store.put(sc).then(function () { var s = $("#saved"); if (s) s.textContent = "Saved ✓"; }); }
+  function queueSave() { var s = $("#saved"); if (s) s.textContent = "Saving…"; clearTimeout(saveTimer); saveTimer = setTimeout(persist, 350); }
+  function flush() { if (sc && !$("#screen-form").hidden) { clearTimeout(saveTimer); persist(); } }
+  document.addEventListener("visibilitychange", function () { if (document.hidden) flush(); });
+  window.addEventListener("pagehide", flush);
+
+  function progress(c) {
+    var need = cfg.mandatoryLines || 3, total = 0, done = 0;
+    c.categories.forEach(function (cat) {
+      for (var i = 0; i < need; i++) { total++; var l = cat.lines[i]; if (l && l.name.trim() && SC.num(l.system) !== null && SC.num(l.counted) !== null) done++; }
+    });
+    return { total: total, done: done };
+  }
+
+  /* ---------------- home ---------------- */
+  function renderHome() {
+    SC.store.all().then(function (list) {
+      var max = cfg.maxSaved || 10;
+      var h = "<h2>Spot checks on this phone <span class='muted'>(" + list.length + "/" + max + ")</span></h2>";
+      h += "<button class='btn pink' id='btn-new'>+ New spot check</button><div style='height:14px'></div>";
+      if (!list.length) h += "<div class='empty'>Nothing saved yet.<br>Start a spot check &mdash; it is saved automatically as you type, so you can leave and come back.</div>";
+      list.forEach(function (c) {
+        var p = progress(c);
+        h += "<div class='card draft' data-open='" + c.id + "'><div class='info'><div class='store'>" + esc(c.store || "No shop selected") + "</div>" +
+          "<div class='meta'>" + esc(fmtDate(c.date)) + (c.opsManager ? " &middot; " + esc(c.opsManager) : "") + "</div>" +
+          "<div style='margin-top:6px'>" + (c.status === "exported" ? "<span class='badge ok'>PDF exported</span> " : "") + "<span class='badge'>" + p.done + "/" + p.total + " required lines</span></div></div>" +
+          "<button class='x' data-del='" + c.id + "' aria-label='Delete'>&#10005;</button></div>";
+      });
+      h += "<p class='muted center' style='margin-top:20px'>Everything is stored on this phone only. Export the PDF, send it, then delete the spot check.</p>";
+      h += "<div class='ver'><div class='muted'>Version " + SC.BUILD + "</div><button id='btn-checkupd'>Check for the latest version</button></div>";
+      $("#screen-home").innerHTML = h;
+      $("#btn-checkupd").onclick = checkUpdate;
+      $("#btn-new").onclick = function () {
+        if (list.length >= max) { infoBox("Storage full", "<p>You can keep up to <b>" + max + "</b> spot checks on this phone. Export or delete one first.</p>"); return; }
+        sc = newCheck(); persist().then(function () { openForm(); });
+      };
+      Array.prototype.forEach.call(document.querySelectorAll("[data-open]"), function (el) {
+        el.onclick = function (e) {
+          if (e.target.closest("[data-del]")) return;
+          SC.store.get(el.getAttribute("data-open")).then(function (c) { sc = c; openForm(); });
+        };
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-del]"), function (el) {
+        el.onclick = function () {
+          var id = el.getAttribute("data-del");
+          confirmBox("Delete spot check?", "This permanently removes it (and its photos) from this phone.", "Delete", true).then(function (ok) { if (ok) SC.store.del(id).then(renderHome); });
+        };
+      });
+    });
+    show("home");
+  }
+
+  /* ---------------- form ---------------- */
+  function photoUrl(p) { if (!urls[p.id]) urls[p.id] = URL.createObjectURL(p.blob); return urls[p.id]; }
+  function photosHtml(key, arr) {
+    var h = "<div class='photos'>";
+    arr.forEach(function (p, i) {
+      h += "<div class='ph'><img src='" + photoUrl(p) + "' alt=''><button class='rm' data-rmph='" + key + "' data-i='" + i + "' aria-label='Remove photo'>&#10005;</button>" +
+        "<input type='text' placeholder='Note' value='" + esc(p.caption || "") + "' data-cap='" + key + "' data-i='" + i + "'></div>";
+    });
+    h += "</div><label class='addphoto'>&#128247; Add photos<input type='file' accept='image/*' multiple data-addph='" + key + "'></label>";
+    return h;
+  }
+  function photoArr(key) {
+    if (key === "general") return sc.generalPhotos;
+    if (key === "wastage") return sc.wastage.photos;
+    return sc.categories[parseInt(key.slice(1), 10)].photos;
+  }
+  function lineHtml(ci, li, l) {
+    var need = cfg.mandatoryLines || 3, req = li < need, v = SC.variance(l);
+    return "<div class='line'><div class='row'>" +
+      "<div class='nm'><input type='text' placeholder='Item' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'></div>" +
+      "<input class='num' type='text' inputmode='decimal' placeholder='System' value='" + esc(l.system) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='system' data-req='" + (req ? 1 : 0) + "'>" +
+      "<input class='num' type='text' inputmode='decimal' placeholder='Counted' value='" + esc(l.counted) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='counted' data-req='" + (req ? 1 : 0) + "'>" +
+      "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v)) + "</div></div>" +
+      (req ? "" : "<div style='text-align:right'><button class='x' style='font-size:13px' data-rmline='" + ci + "," + li + "'>Remove line</button></div>") + "</div>";
+  }
+  function calcResult() {
+    var c = sc.calc, s = SC.num(sc.sales);
+    var vals = [c.opening, c.purchases, c.tin, c.tout, c.closing].map(SC.num);
+    if (vals[0] === null || vals[1] === null || vals[4] === null || s === null || s === 0) return null;
+    var cost = vals[0] + vals[1] + (vals[2] || 0) - (vals[3] || 0) - vals[4];
+    var coi = cost / s * 100;
+    return { cost: cost, coi: coi, gp: 100 - coi };
+  }
+  function calcText() {
+    var r = calcResult();
+    return r ? "Cost of sales &pound;" + SC.fmtNum(r.cost) + " &middot; COI " + SC.fmtNum(r.coi) + "% &middot; <b>GP " + SC.fmtNum(r.gp) + "%</b>" : "Fill opening stock, purchases, closing stock and Vitamojo sales to calculate.";
+  }
+
+  function renderForm() {
+    var y = window.scrollY, c = sc, h = "";
+    var shops = (cfg.shops || []).slice().sort(function (a, b) { return a.localeCompare(b); });
+    if (c.store && shops.indexOf(c.store) < 0) shops.push(c.store);
+    h += "<div class='card'><label class='f'>Store<select data-f='store' data-req='1'><option value=''>Select shop&hellip;</option>" +
+      shops.map(function (s) { return "<option" + (s === c.store ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select></label>" +
+      "<label class='f'>Ops manager<input type='text' data-f='opsManager' data-req='1' value='" + esc(c.opsManager) + "' placeholder='Your name' autocomplete='name'></label>" +
+      "<div class='grid2'><label class='f'>Date<input type='date' data-f='date' data-req='1' value='" + esc(c.date) + "'></label>" +
+      "<label class='f'>Period<input type='text' data-f='period' value='" + esc(c.period) + "' placeholder='e.g. Wk 47'></label></div></div>";
+
+    h += "<div class='sec'><span class='num'>1</span><h3>Stock value, Vitamojo sales and GP</h3><span class='rule'></span></div>";
+    h += "<div class='card'><div class='grid2'>" +
+      "<label class='f'>Total stock value<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='totalStock' value='" + esc(c.totalStock) + "'></div></label>" +
+      "<label class='f'>Vitamojo gross sales<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='sales' value='" + esc(c.sales) + "'></div></label></div>" +
+      "<label class='f'>GP %<div class='money'><input type='text' inputmode='decimal' data-f='gp' value='" + esc(c.gp) + "' style='padding-left:12px'></div></label>" +
+      "<div class='gpbox'><b>How to calculate GP</b><br>1. Cost of sales = Opening stock + Purchases + Transfers in &minus; Transfers out &minus; Closing stock<br>2. COI % = Cost of sales / Sales &times; 100<br>3. GP % = 100 &minus; COI %<br>Example: cost 30% &rarr; GP 70%</div>" +
+      "<details class='calc'><summary>GP calculator (optional)</summary><div class='grid2' style='margin-top:10px'>" +
+      ["opening:Opening stock", "purchases:Purchases", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock"].map(function (s) {
+        var p = s.split(":"); return "<label class='f'>" + p[1] + " &pound;<input type='text' inputmode='decimal' data-calc='" + p[0] + "' value='" + esc(c.calc[p[0]]) + "'></label>";
+      }).join("") + "</div><p id='calc-out' class='muted'>" + calcText() + "</p><button class='btn light small' id='btn-usegp'>Use this GP %</button></details>" +
+      "<label class='f'>GP discussed with the team (notes)<textarea data-f='gpNotes'>" + esc(c.gpNotes) + "</textarea></label></div>";
+
+    h += "<div class='sec'><span class='num'>2</span><h3>Line-by-line check: " + (cfg.mandatoryLines || 3) + " lines per category</h3><span class='rule'></span></div>";
+    c.categories.forEach(function (cat, ci) {
+      h += "<div class='card blue'><div class='card-head'><span class='t'>" + esc(cat.name) + "</span><span class='cols'><span>System</span><span>Counted</span><span>Var.</span></span></div><div class='card-body'>";
+      cat.lines.forEach(function (l, li) { h += lineHtml(ci, li, l); });
+      h += "<div class='actions'><button class='btn light small' data-addline='" + ci + "'>+ Add line</button>" + (cat.custom ? "<button class='btn danger small' data-rmcat='" + ci + "'>Remove category</button>" : "") + "</div>" + photosHtml("c" + ci, cat.photos) + "</div></div>";
+    });
+    if (cfg.wastage !== false) {
+      h += "<div class='card blue'><div class='card-head pink'><span class='t'>Weekly wastage (shop visit)</span></div><div class='card-body'>" +
+        "<label class='f'>Wastage value<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-w='amount' value='" + esc(c.wastage.amount) + "'></div></label>" +
+        "<label class='f'>Notes<textarea data-w='notes'>" + esc(c.wastage.notes) + "</textarea></label>" + photosHtml("wastage", c.wastage.photos) + "</div></div>";
+    }
+    h += "<button class='btn light' id='btn-addcat'>+ Add category</button>";
+    h += "<div class='card' style='margin-top:12px'><div class='tag'>Other photos</div>" + photosHtml("general", c.generalPhotos) + "</div>";
+
+    h += "<div class='sec'><span class='num'>3</span><h3>Actions and sign-off</h3><span class='rule'></span></div>";
+    h += "<div class='card'><label class='f'>Actions<textarea data-f='actions' style='min-height:110px'>" + esc(c.actions) + "</textarea></label>" +
+      "<div class='tag'>Ops manager signature</div><canvas class='sig' id='sig-ops'></canvas><button class='btn light small' data-clearsig='sigOps' style='margin:6px 0 14px'>Clear</button>" +
+      "<label class='f'>Store manager name<input type='text' data-f='storeManager' value='" + esc(c.storeManager) + "'></label>" +
+      "<div class='tag'>Store manager signature</div><canvas class='sig' id='sig-store'></canvas><button class='btn light small' data-clearsig='sigStore' style='margin-top:6px'>Clear</button></div>";
+
+    h += "<div class='sticky-bar'><span class='saved' id='saved'>Saved &#10003;</span><button class='btn light' id='btn-save' style='flex:1'>Save &amp; close</button><button class='btn pink' id='btn-export' style='flex:1.4'>Export PDF</button></div>";
+    var root = $("#screen-form"); root.innerHTML = h;
+    initSig("sig-ops", "sigOps"); initSig("sig-store", "sigStore");
+    window.scrollTo(0, y);
+  }
+
+  function initSig(id, key) {
+    var cv = document.getElementById(id), dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth, hh = cv.clientHeight; cv.width = w * dpr; cv.height = hh * dpr;
+    var ctx = cv.getContext("2d"); ctx.scale(dpr, dpr); ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#16316d";
+    if (sc[key]) { var im = new Image(); im.onload = function () { ctx.drawImage(im, 0, 0, w, hh); }; im.src = sc[key]; }
+    var drawing = false, lx = 0, ly = 0;
+    function pos(e) { var r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+    cv.addEventListener("pointerdown", function (e) { drawing = true; cv.setPointerCapture(e.pointerId); var p = pos(e); lx = p[0]; ly = p[1]; ctx.beginPath(); ctx.arc(lx, ly, 1, 0, 6.3); ctx.stroke(); e.preventDefault(); });
+    cv.addEventListener("pointermove", function (e) { if (!drawing) return; var p = pos(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p[0], p[1]); ctx.stroke(); lx = p[0]; ly = p[1]; e.preventDefault(); });
+    function end() { if (!drawing) return; drawing = false; sc[key] = cv.toDataURL("image/png"); queueSave(); }
+    cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+  }
+
+  function processPhoto(file) {
+    return new Promise(function (resolve, reject) {
+      function draw(src, w, h) {
+        var s = Math.min(1, 1600 / Math.max(w, h)), cw = Math.round(w * s), ch = Math.round(h * s);
+        var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+        var ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cw, ch); ctx.drawImage(src, 0, 0, cw, ch);
+        cv.toBlob(function (b) { b ? resolve({ id: SC.uid(), blob: b, w: cw, h: ch, caption: "" }) : reject(new Error("blob")); }, "image/jpeg", 0.85);
+      }
+      if (window.createImageBitmap) {
+        createImageBitmap(file, { imageOrientation: "from-image" }).then(function (b) { draw(b, b.width, b.height); }, fallback);
+      } else fallback();
+      function fallback() {
+        var im = new Image(), u = URL.createObjectURL(file);
+        im.onload = function () { draw(im, im.naturalWidth, im.naturalHeight); URL.revokeObjectURL(u); };
+        im.onerror = reject; im.src = u;
+      }
+    });
+  }
+
+  function setupFormEvents() {
+    var root = $("#screen-form");
+    root.addEventListener("input", function (e) {
+      var t = e.target; t.classList.remove("invalid");
+      if (t.dataset.f) { sc[t.dataset.f] = t.value; if (t.dataset.f === "opsManager") { try { localStorage.setItem("sc_ops", t.value); } catch (er) {} } if (t.dataset.f === "sales") $("#calc-out").innerHTML = calcText(); }
+      else if (t.dataset.calc) { sc.calc[t.dataset.calc] = t.value; $("#calc-out").innerHTML = calcText(); }
+      else if (t.dataset.w) { sc.wastage[t.dataset.w] = t.value; }
+      else if (t.dataset.k) {
+        var ci = +t.dataset.ci, li = +t.dataset.li, l = sc.categories[ci].lines[li]; l[t.dataset.k] = t.value;
+        var v = SC.variance(l), el = $("#var-" + ci + "-" + li);
+        el.textContent = v === null ? "–" : SC.fmtVar(v); el.className = "var " + (v < 0 ? "neg" : v > 0 ? "pos" : "");
+      } else if (t.dataset.cap) { photoArr(t.dataset.cap)[+t.dataset.i].caption = t.value; }
+      else return;
+      queueSave();
+    });
+    root.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t.dataset.f === "store" || t.dataset.f === "date") { sc[t.dataset.f] = t.value; t.classList.remove("invalid"); queueSave(); }
+      if (t.dataset.addph) {
+        var files = Array.prototype.slice.call(t.files), key = t.dataset.addph;
+        if (!files.length) return;
+        toast("Adding photos…");
+        files.reduce(function (p, f) { return p.then(function () { return processPhoto(f).then(function (ph) { photoArr(key).push(ph); }); }); }, Promise.resolve())
+          .then(function () { return persist(); }).then(function () { renderForm(); }).catch(function () { toast("Could not add that photo"); });
+      }
+    });
+    root.addEventListener("click", function (e) {
+      var t = e.target.closest("button"); if (!t) return;
+      if (t.dataset.addline !== undefined) { sc.categories[+t.dataset.addline].lines.push({ id: SC.uid(), name: "", system: "", counted: "" }); persist(); renderForm(); }
+      else if (t.dataset.rmline) {
+        var p = t.dataset.rmline.split(","); sc.categories[+p[0]].lines.splice(+p[1], 1); persist(); renderForm();
+      } else if (t.dataset.rmcat !== undefined) {
+        confirmBox("Remove category?", "This removes the category, its lines and photos.", "Remove", true).then(function (ok) { if (ok) { sc.categories.splice(+t.dataset.rmcat, 1); persist(); renderForm(); } });
+      } else if (t.dataset.rmph) {
+        photoArr(t.dataset.rmph).splice(+t.dataset.i, 1); persist(); renderForm();
+      } else if (t.dataset.clearsig) { sc[t.dataset.clearsig] = null; persist(); renderForm(); }
+      else if (t.id === "btn-addcat") {
+        modal("<h3>Add category</h3><label class='f'>Category name<input type='text' id='m-cat' placeholder='e.g. Dry store'></label><div class='actions'><button class='btn small' id='m-ok'>Add</button><button class='btn light small' id='m-cancel'>Cancel</button></div>", function (c) {
+          $("#m-cat", c).focus();
+          $("#m-cancel", c).onclick = closeModal;
+          $("#m-ok", c).onclick = function () {
+            var n = $("#m-cat", c).value.trim(); if (!n) return;
+            sc.categories.push({ id: SC.uid(), name: n, custom: true, lines: blankLines([]), photos: [] }); closeModal(); persist(); renderForm();
+          };
+        });
+      } else if (t.id === "btn-usegp") {
+        var r = calcResult(); if (!r) { toast("Fill the calculator first"); return; }
+        sc.gp = SC.fmtNum(r.gp); var gi = root.querySelector("[data-f=gp]"); gi.value = sc.gp; queueSave(); toast("GP % updated");
+      } else if (t.id === "btn-save") { clearTimeout(saveTimer); persist().then(function () { sc = null; renderHome(); }); }
+      else if (t.id === "btn-export") exportPdf();
+    });
+  }
+
+  function openForm() { renderForm(); show("form"); }
+
+  /* ---------------- validation + export ---------------- */
+  function validate() {
+    var errs = [], need = cfg.mandatoryLines || 3;
+    if (!sc.store) errs.push({ m: "Select the store", q: "[data-f=store]" });
+    if (!sc.opsManager.trim()) errs.push({ m: "Enter the ops manager name", q: "[data-f=opsManager]" });
+    if (!sc.date) errs.push({ m: "Enter the date", q: "[data-f=date]" });
+    sc.categories.forEach(function (cat, ci) {
+      var miss = 0, first = null;
+      for (var i = 0; i < need; i++) {
+        var l = cat.lines[i];
+        ["name", "system", "counted"].forEach(function (k) {
+          var bad = k === "name" ? !l.name.trim() : SC.num(l[k]) === null;
+          if (bad) { miss++; var q = "[data-ci='" + ci + "'][data-li='" + i + "'][data-k='" + k + "']"; var el = $(q); if (el) el.classList.add("invalid"); if (!first) first = q; }
+        });
+      }
+      if (miss) errs.push({ m: cat.name + ": " + need + " lines need item, system and counted", q: first });
+    });
+    return errs;
+  }
+  function warnings() {
+    var w = [];
+    if (!String(sc.totalStock).trim()) w.push("Total stock value is empty");
+    if (!String(sc.sales).trim()) w.push("Vitamojo gross sales is empty");
+    if (!String(sc.gp).trim()) w.push("GP % is empty");
+    return w;
+  }
+  function exportPdf() {
+    Array.prototype.forEach.call(document.querySelectorAll(".invalid"), function (el) { el.classList.remove("invalid"); });
+    var errs = validate();
+    if (errs.length) {
+      Array.prototype.forEach.call(document.querySelectorAll("[data-f=store],[data-f=opsManager],[data-f=date]"), function (el) { if (!el.value) el.classList.add("invalid"); });
+      infoBox("Complete these first", "<ul>" + errs.map(function (e) { return "<li>" + esc(e.m) + "</li>"; }).join("") + "</ul>").then(function () {
+        var el = $(errs[0].q); if (el) { el.scrollIntoView({ block: "center" }); }
+      });
+      return;
+    }
+    var w = warnings(), go = w.length ? confirmBox("Export anyway?", "<ul>" + w.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>", "Export anyway") : Promise.resolve(true);
+    go.then(function (ok) {
+      if (!ok) return;
+      toast("Building PDF…");
+      return persist().then(function () { return SC.buildPdf(sc, cfg); }).then(function (blob) {
+        pdfBlob = blob; pdfName = "HoniPoke_SpotCheck_" + sc.store.replace(/[^A-Za-z0-9]+/g, "") + "_" + sc.date + ".pdf";
+        sc.status = "exported"; sc.exportedAt = Date.now(); return persist();
+      }).then(renderDone).catch(function (err) { console.error(err); infoBox("Could not build the PDF", "<p>" + esc(err && err.message || err) + "</p>"); });
+    });
+  }
+
+  function renderDone() {
+    $("#screen-done").innerHTML =
+      "<h2>PDF ready &#10003;</h2><div class='card'><b>" + esc(pdfName) + "</b><div class='muted'>" + (pdfBlob.size / 1024 / 1024).toFixed(2) + " MB &middot; " + esc(sc.store) + " &middot; " + esc(fmtDate(sc.date)) + "</div></div>" +
+      "<button class='btn pink' id='d-share'>Share / save PDF</button><div style='height:10px'></div>" +
+      "<button class='btn light' id='d-open'>Open PDF</button><div style='height:10px'></div>" +
+      "<button class='btn light' id='d-back'>&larr; Back to spot check</button><div style='height:10px'></div>" +
+      "<button class='btn danger' id='d-del'>Delete this spot check from the phone</button>" +
+      "<p class='muted center'>After you save or share the PDF you will be asked whether to delete the spot check.</p>";
+    $("#d-share").onclick = sharePdf;
+    $("#d-open").onclick = function () { window.open(URL.createObjectURL(pdfBlob), "_blank"); };
+    $("#d-back").onclick = function () { openForm(); };
+    $("#d-del").onclick = askDelete;
+    show("done");
+  }
+  function sharePdf() {
+    var file = new File([pdfBlob], pdfName, { type: "application/pdf" });
+    function download() {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(pdfBlob); a.download = pdfName; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(askDelete, 800);
+    }
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: pdfName }).then(askDelete).catch(function (e) { if (e && e.name !== "AbortError") download(); });
+    } else download();
+  }
+  function askDelete() {
+    confirmBox("Delete from this phone?", "Only delete if you have saved or sent the PDF. This removes the spot check and its photos from this phone.", "Yes, delete", true).then(function (ok) {
+      if (!ok) return;
+      SC.store.del(sc.id).then(function () { sc = null; pdfBlob = null; toast("Deleted"); renderHome(); });
+    });
+  }
+
+  /* ---------------- updates (drafts live in IndexedDB and survive an update) ---------------- */
+  var swReg = null, reloading = false;
+  function showUpdate() { $("#update-banner").hidden = false; }
+  function applyUpdate() {
+    clearTimeout(saveTimer);
+    var done = function () {
+      if (swReg && swReg.waiting) swReg.waiting.postMessage("SKIP_WAITING"); else location.reload();
+    };
+    (sc ? persist() : Promise.resolve()).then(done, done);
+  }
+  function checkUpdate() {
+    if (!swReg) { toast("Updates not available in this browser"); return; }
+    toast("Checking\u2026");
+    swReg.update().then(function () {
+      setTimeout(function () {
+        if (swReg.waiting) { showUpdate(); toast("New version found"); } else toast("You have the latest version");
+      }, 1500);
+    }).catch(function () { toast("No connection - try again later"); });
+  }
+  function initSW() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("sw.js").then(function (reg) {
+      swReg = reg;
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdate();
+      reg.addEventListener("updatefound", function () {
+        var w = reg.installing;
+        w.addEventListener("statechange", function () { if (w.state === "installed" && navigator.serviceWorker.controller) showUpdate(); });
+      });
+      reg.update().catch(function () {});
+    }).catch(function () {});
+    navigator.serviceWorker.addEventListener("controllerchange", function () { if (!reloading) { reloading = true; location.reload(); } });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && swReg) swReg.update().catch(function () {}); });
+  }
+  $("#btn-update-now").onclick = applyUpdate;
+
+  $("#btn-home").onclick = function () { flush(); setTimeout(function () { sc = null; renderHome(); }, 80); };
+
+  SC.loadConfig().then(function (c) {
+    cfg = c; setupFormEvents(); renderHome(); initSW();
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+  });
+  window.__sc = { get sc() { return sc; }, get cfg() { return cfg; } };
+})();

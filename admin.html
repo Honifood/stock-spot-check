@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="styles.css">
+<title>Spot Check Admin</title>
+<style>
+  .row2 { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .row2 input { margin:0; }
+  .row2 .x { flex:none; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:#e9eef9; color:var(--blue); border-radius:18px; padding:6px 6px 6px 12px; font-weight:600; font-size:14px; display:flex; align-items:center; gap:2px; }
+  .chip button { background:none; border:0; color:var(--soft); font-size:16px; padding:0 6px; }
+  .adm-bar { position:sticky; bottom:0; background:rgba(255,255,255,.97); padding:10px 0; display:flex; gap:8px; border-top:1px solid var(--line); margin-top:16px; }
+  #status { font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header class="app-header"><div class="brand"><span class="logo">HONI<br>POKE</span><span class="app-name">Spot Check Admin</span></div><a class="btn-ghost" href="index.html" style="text-decoration:none">App</a></header>
+<main id="app"><div id="root"></div></main>
+<script src="common.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
