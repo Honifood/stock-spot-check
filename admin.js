@@ -26,11 +26,12 @@
 
   /* ---- main editor ---- */
   function main() {
-    var h = "<h2>Shops <span class='muted'>(" + cfg.shops.length + ")</span></h2><div class='card'><div class='chips'>";
-    cfg.shops.slice().sort(function (a, b) { return a.localeCompare(b); }).forEach(function (s) {
-      h += "<span class='chip'>" + esc(s) + "<button data-rmshop='" + esc(s) + "' aria-label='Remove'>&#10005;</button></span>";
+    var h = "<h2>Shops <span class='muted'>(" + cfg.shops.length + ")</span></h2><div class='card'><p class='muted' style='margin-top:0'>This is the exact order managers see in the dropdown. Use the arrows to reorder.</p>";
+    cfg.shops.forEach(function (sh, i) {
+      h += "<div class='row2'><input type='text' value='" + esc(sh) + "' data-sname='" + i + "'>" +
+        "<button class='x' data-sup='" + i + "'>&uarr;</button><button class='x' data-sdown='" + i + "'>&darr;</button><button class='x' data-rmshop='" + i + "'>&#10005;</button></div>";
     });
-    h += "</div><div class='row2' style='margin-top:12px'><textarea id='newshop' style='min-height:48px;margin:0' placeholder='Add shop (or paste several, one per line)'></textarea><button class='btn small' id='addshop'>Add</button></div></div>";
+    h += "<div class='row2' style='margin-top:12px'><textarea id='newshop' style='min-height:48px;margin:0' placeholder='Add shop (or paste several, one per line)'></textarea><button class='btn small' id='addshop'>Add</button></div></div>";
 
     h += "<h2>Categories</h2>";
     cfg.categories.forEach(function (c, i) {
@@ -47,10 +48,11 @@
       "<button class='btn light small' id='chpin'>Change admin PIN</button></div>";
 
     h += "<h2>Publish</h2><div class='card'><p class='muted'>Publishing saves config.json to GitHub. Phones pick up shop/category changes the next time they open the app (no update button needed).</p>" +
-      "<label class='f'>GitHub owner<input type='text' id='g-owner' value='" + esc(pref("owner")) + "'></label>" +
-      "<label class='f'>Repository<input type='text' id='g-repo' value='" + esc(pref("repo")) + "'></label>" +
+      "<label class='f'>GitHub owner<input type='text' id='g-owner' value='" + esc(pref("owner") || "Honifood") + "'></label>" +
+      "<label class='f'>Repository<input type='text' id='g-repo' value='" + esc(pref("repo") || "stock-spot-check") + "'></label>" +
       "<label class='f'>Branch<input type='text' id='g-branch' value='" + esc(pref("branch") || "main") + "'></label>" +
-      "<label class='f'>Token (fine-grained, Contents: read &amp; write)<input type='password' id='g-token' value='" + esc(pref("token")) + "'></label>" +
+      "<label class='f'>GitHub token - paste it here<input type='password' id='g-token' value='" + esc(pref("token")) + "' placeholder='github_pat_...'></label>" +
+      "<p class='muted'>Create it at github.com/settings/personal-access-tokens/new: repository access = only this repo, permission Contents = Read and write. It is stored only in this browser; use it only on your own device.</p>" +
       "<div class='actions'><button class='btn pink' id='publish'>Publish to GitHub</button><button class='btn light' id='download'>Download config.json</button></div><div id='status'></div></div>";
     root.innerHTML = h;
     bind();
@@ -71,7 +73,9 @@
     root.onclick = function (e) {
       var t = e.target.closest("button"); if (!t) return;
       readSettings();
-      if (t.dataset.rmshop) { if (confirm("Remove " + t.dataset.rmshop + "?")) { cfg.shops = cfg.shops.filter(function (s) { return s !== t.dataset.rmshop; }); main(); } }
+      if (t.dataset.rmshop) { var si = +t.dataset.rmshop; if (confirm("Remove " + cfg.shops[si] + "?")) { cfg.shops.splice(si, 1); main(); } }
+      else if (t.dataset.sup) { var a = +t.dataset.sup; if (a > 0) { cfg.shops.splice(a - 1, 0, cfg.shops.splice(a, 1)[0]); main(); } }
+      else if (t.dataset.sdown) { var b2 = +t.dataset.sdown; if (b2 < cfg.shops.length - 1) { cfg.shops.splice(b2 + 1, 0, cfg.shops.splice(b2, 1)[0]); main(); } }
       else if (t.id === "addshop") { addShops($("#newshop").value); main(); }
       else if (t.dataset.rmcat) { if (confirm("Remove category " + cfg.categories[+t.dataset.rmcat].name + "?")) { cfg.categories.splice(+t.dataset.rmcat, 1); main(); } }
       else if (t.dataset.up) { var i = +t.dataset.up; if (i > 0) { cfg.categories.splice(i - 1, 0, cfg.categories.splice(i, 1)[0]); main(); } }
@@ -83,7 +87,8 @@
     };
     root.oninput = function (e) {
       var t = e.target;
-      if (t.dataset.cname) cfg.categories[+t.dataset.cname].name = t.value;
+      if (t.dataset.sname) cfg.shops[+t.dataset.sname] = t.value;
+      else if (t.dataset.cname) cfg.categories[+t.dataset.cname].name = t.value;
       else if (t.dataset.clines) cfg.categories[+t.dataset.clines].lines = t.value.split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
     };
   }

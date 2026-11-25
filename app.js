@@ -145,11 +145,12 @@
 
   function renderForm() {
     var y = window.scrollY, c = sc, h = "";
-    var shops = (cfg.shops || []).slice().sort(function (a, b) { return a.localeCompare(b); });
+    var shops = (cfg.shops || []).slice();
     if (c.store && shops.indexOf(c.store) < 0) shops.push(c.store);
     h += "<div class='card'><label class='f'>Store<select data-f='store' data-req='1'><option value=''>Select shop&hellip;</option>" +
       shops.map(function (s) { return "<option" + (s === c.store ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select></label>" +
       "<label class='f'>Ops manager<input type='text' data-f='opsManager' data-req='1' value='" + esc(c.opsManager) + "' placeholder='Your name' autocomplete='name'></label>" +
+      "<label class='f'>Store manager<input type='text' data-f='storeManager' value='" + esc(c.storeManager) + "' placeholder='Store manager name'></label>" +
       "<div class='grid2'><label class='f'>Date<input type='date' data-f='date' data-req='1' value='" + esc(c.date) + "'></label>" +
       "<label class='f'>Period<input type='text' data-f='period' value='" + esc(c.period) + "' placeholder='e.g. Wk 47'></label></div></div>";
 
@@ -182,7 +183,6 @@
     h += "<div class='sec'><span class='num'>3</span><h3>Actions and sign-off</h3><span class='rule'></span></div>";
     h += "<div class='card'><label class='f'>Actions<textarea data-f='actions' style='min-height:110px'>" + esc(c.actions) + "</textarea></label>" +
       "<div class='tag'>Ops manager signature</div><canvas class='sig' id='sig-ops'></canvas><button class='btn light small' data-clearsig='sigOps' style='margin:6px 0 14px'>Clear</button>" +
-      "<label class='f'>Store manager name<input type='text' data-f='storeManager' value='" + esc(c.storeManager) + "'></label>" +
       "<div class='tag'>Store manager signature</div><canvas class='sig' id='sig-store'></canvas><button class='btn light small' data-clearsig='sigStore' style='margin-top:6px'>Clear</button></div>";
 
     h += "<div class='sticky-bar'><span class='saved' id='saved'>Saved &#10003;</span><button class='btn light' id='btn-save' style='flex:1'>Save &amp; close</button><button class='btn pink' id='btn-export' style='flex:1.4'>Export PDF</button></div>";

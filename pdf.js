@@ -170,6 +170,7 @@
     header();
     var fw = [46, 52, 34, 44], fx = [M, M + 50, M + 106, M + 144];
     field("STORE", sc.store, fx[0], fw[0] + 2); field("OPS MANAGER", sc.opsManager, fx[1] + 2, fw[1]); field("DATE", fmtDate(sc.date), fx[2] + 4, fw[2]); field("PERIOD", sc.period, fx[3] + 4, fw[3] - 6);
+    y += 9; field("STORE MANAGER", sc.storeManager, M, 80);
     y += 12;
 
     section(1, "Stock value, Vitamojo sales and GP");

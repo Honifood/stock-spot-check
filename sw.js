@@ -1,5 +1,5 @@
 // Bump CACHE_NAME on every release (admin "Publish" in GitHub = new commit; change this string to ship app code changes).
-var CACHE_NAME = "spot-check-v1";
+var CACHE_NAME = "spot-check-v2";
 var ASSETS = [
   "./", "./index.html", "./admin.html", "./styles.css", "./app.js", "./common.js", "./pdf.js",
   "./admin.js", "./vendor/jspdf.umd.min.js", "./manifest.json", "./icon-192.png", "./icon-512.png"

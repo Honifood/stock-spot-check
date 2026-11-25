@@ -1,22 +1,77 @@
 {
-  "version": 1,
+  "version": 2,
   "appTitle": "Stock Spot Check",
   "mandatoryLines": 3,
   "maxSaved": 10,
   "wastage": true,
   "adminPinHash": "",
   "shops": [
-    "Angel", "Baker Street", "Banksite", "Battersea", "Bishopsgate", "Bow Lane IP", "Bristol",
-    "Broadgate", "Canary Wharf", "Chancery Lane", "Fenchurch", "Fenchurch Street", "Farringdon",
-    "Fitzrovia", "Fleet Place", "Fulham", "High Holborn", "Kingly", "Leeds", "Manchester",
-    "Margaret", "Moorgate", "New Street", "Paddington", "Selfridges", "Shoreditch", "Southbank",
-    "St Mary's Axe", "St Paul", "Victoria", "Victoria IP", "Westfield"
+    "Fulham Honi Poke",
+    "Fulham Sushi",
+    "Fenchurch Honi Poke",
+    "Margaret Honi Poke",
+    "Chancery Honi Poke",
+    "Angel Honi Poke",
+    "Angel Sushi",
+    "Fleet Honi Poke",
+    "Victoria Honi Poke",
+    "Westfield Honi Poke",
+    "Selfridges Honi Poke",
+    "Jerdan Place Honi Poke",
+    "South Bank Honi Poke",
+    "South Bank Sushi",
+    "Bishopsgate Honi Poke",
+    "Paddington Honi Poke",
+    "Farringdon Honi Poke",
+    "Farringdon Sushi",
+    "Battersea Honi Poke",
+    "Battersea Sushi",
+    "Manchester Honi Poke",
+    "St Paul Honi Poke",
+    "Moorgate Honi Poke",
+    "Leeds Honi Poke",
+    "Banksite Honi Poke",
+    "New Street Honi Poke",
+    "New Street Sushi",
+    "High Holborn Honi Poke",
+    "St Mary Axe Honi Poke",
+    "Fitzrovia Honi Poke",
+    "Canary Wharf Honi Poke",
+    "Kingly Honi Poke",
+    "Kingly Sushi",
+    "Shoreditch Honi Poke",
+    "Shoreditch Sushi",
+    "Broadgate Honi Poke",
+    "Victoria 2 Honi Poke",
+    "Fenchurch 2 Honi Poke"
   ],
   "categories": [
-    { "id": "protein", "name": "Protein", "lines": ["Salmon"] },
-    { "id": "drinks", "name": "Drinks", "lines": [] },
-    { "id": "chemicals", "name": "Chemicals", "lines": [] },
-    { "id": "packaging", "name": "Packaging", "lines": [] },
-    { "id": "batch-sauces", "name": "Batch sauces", "lines": [] }
+    {
+      "id": "protein",
+      "name": "Protein",
+      "lines": [
+        "Salmon"
+      ]
+    },
+    {
+      "id": "drinks",
+      "name": "Drinks",
+      "lines": []
+    },
+    {
+      "id": "chemicals",
+      "name": "Chemicals",
+      "lines": []
+    },
+    {
+      "id": "packaging",
+      "name": "Packaging",
+      "lines": []
+    },
+    {
+      "id": "batch-sauces",
+      "name": "Batch sauces",
+      "lines": []
+    }
   ]
 }
