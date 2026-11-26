@@ -44,6 +44,11 @@
   function build2(sc, cfg) {
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+    // extra lines the manager added but never filled in are not printed
+    var mand = cfg.mandatoryLines || 3;
+    sc = Object.assign({}, sc, { categories: sc.categories.map(function (c) {
+      return Object.assign({}, c, { lines: c.lines.filter(function (l, i) { return i < mand || String(l.name).trim() || String(l.system).trim() || String(l.counted).trim(); }) });
+    }) });
     var W = 210, H = 297, M = 12, CW = W - 2 * M, BOT = H - 14, ROW = 7.5, HEAD = 7;
     var y = 0, first = true;
 

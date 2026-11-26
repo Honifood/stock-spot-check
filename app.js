@@ -165,7 +165,7 @@
   function lineHtml(ci, li, l) {
     var need = cfg.mandatoryLines || 3, req = li < need, v = SC.variance(l);
     return "<div class='line'><div class='row'>" +
-      "<div class='nm'><input type='text' placeholder='Item' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'></div>" +
+      "<div class='nm'><input type='text' placeholder='Item' maxlength='60' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'></div>" +
       "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='System' value='" + esc(l.system) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='system' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",system' aria-label='Toggle minus'>&plusmn;</button></div>" +
       "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='Counted' value='" + esc(l.counted) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='counted' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",counted' aria-label='Toggle minus'>&plusmn;</button></div>" +
       "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v)) + "</div></div>" +
@@ -206,10 +206,10 @@
     if (c.store && shops.indexOf(c.store) < 0) shops.push(c.store);
     h += "<div class='card'><label class='f'>Store<select data-f='store' data-req='1'><option value=''>Select shop&hellip;</option>" +
       shops.map(function (s) { return "<option" + (s === c.store ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select></label>" +
-      "<label class='f'>Ops manager<input type='text' data-f='opsManager' data-req='1' value='" + esc(c.opsManager) + "' placeholder='Your name' autocomplete='name'></label>" +
-      "<label class='f'>Store manager<input type='text' data-f='storeManager' value='" + esc(c.storeManager) + "' placeholder='Store manager name'></label>" +
+      "<label class='f'>Ops manager<input type='text' data-f='opsManager' maxlength='40' data-req='1' value='" + esc(c.opsManager) + "' placeholder='Your name' autocomplete='name'></label>" +
+      "<label class='f'>Store manager<input type='text' data-f='storeManager' maxlength='40' value='" + esc(c.storeManager) + "' placeholder='Store manager name'></label>" +
       "<div class='grid2'><label class='f'>Date<input type='date' data-f='date' data-req='1' value='" + esc(c.date) + "'></label>" +
-      "<label class='f'>Period<input type='text' data-f='period' value='" + esc(c.period) + "' placeholder='e.g. Wk 47'></label></div></div>";
+      "<label class='f'>Period<input type='text' data-f='period' maxlength='20' value='" + esc(c.period) + "' placeholder='e.g. Wk 47'></label></div></div>";
 
     h += "<div class='sec'><span class='num'>1</span><h3>Stock value, Vitamojo sales and GP</h3><span class='rule'></span></div>";
     h += "<div class='card'><div class='grid2'>" +
