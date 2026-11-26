@@ -161,7 +161,7 @@
   }
 
   /* ---------------- form ---------------- */
-  function photoUrl(p) { if (!urls[p.id]) urls[p.id] = URL.createObjectURL(p.blob); return urls[p.id]; }
+  function photoUrl(p) { if (!urls[p.id]) urls[p.id] = URL.createObjectURL(SC.photoBlob(p)); return urls[p.id]; }
   function photosHtml(key, arr) {
     var h = "<div class='photos'>";
     arr.forEach(function (p, i) {

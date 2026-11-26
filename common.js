@@ -102,10 +102,28 @@
       });
     });
   }
+  // Photos are stored as raw bytes (ArrayBuffer): Safari/WebKit refuses Blobs in IndexedDB in private tabs and when storage is tight.
+  var blobCache = {};
+  function photoBlob(p) {
+    if (p.blob instanceof Blob) return p.blob;
+    if (!blobCache[p.id]) blobCache[p.id] = new Blob([p.data], { type: p.type || "image/jpeg" });
+    return blobCache[p.id];
+  }
+  function allPhotos(d) {
+    var out = []; (d.categories || []).forEach(function (c) { (c.photos || []).forEach(function (p) { out.push(p); }); });
+    ((d.wastage && d.wastage.photos) || []).forEach(function (p) { out.push(p); }); (d.generalPhotos || []).forEach(function (p) { out.push(p); });
+    return out;
+  }
+  function prepare(d) {
+    return Promise.all(allPhotos(d).filter(function (p) { return p.blob instanceof Blob; }).map(function (p) {
+      var b = p.blob;
+      return b.arrayBuffer().then(function (ab) { blobCache[p.id] = b; p.data = ab; p.type = b.type || "image/jpeg"; delete p.blob; });
+    }));
+  }
   var store = {
     all: function () { return tx("readonly", function (s) { return s.getAll(); }).then(function (r) { return (r || []).sort(function (a, b) { return b.updatedAt - a.updatedAt; }); }); },
     get: function (id) { return tx("readonly", function (s) { return s.get(id); }); },
-    put: function (obj) { return tx("readwrite", function (s) { return s.put(obj); }); },
+    put: function (obj) { return prepare(obj).then(function () { return tx("readwrite", function (s) { return s.put(obj); }); }); },
     del: function (id) { return tx("readwrite", function (s) { return s.delete(id); }); }
   };
 
@@ -144,5 +162,5 @@
   }
 
   var UNITS = ['g', 'kg', 'each'];
-  window.SC = { UNITS: UNITS, BUILD: "1.6.0", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  window.SC = { photoBlob: photoBlob, UNITS: UNITS, BUILD: "1.6.1", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();

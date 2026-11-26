@@ -11,7 +11,7 @@
   // Photos are re-encoded at <=1000px for the PDF (about 400 ppi at 60 mm): sharp but small enough to email.
   function pdfPhoto(p) {
     return new Promise(function (resolve) {
-      function fallback() { p.blob.arrayBuffer().then(function (ab) { resolve({ bytes: new Uint8Array(ab), w: p.w, h: p.h }); }, function () { resolve(null); }); }
+      function fallback() { SC.photoBlob(p).arrayBuffer().then(function (ab) { resolve({ bytes: new Uint8Array(ab), w: p.w, h: p.h }); }, function () { resolve(null); }); }
       function draw(src, w, h, done) {
         var s = Math.min(1, 1000 / Math.max(w, h)), cw = Math.max(1, Math.round(w * s)), ch = Math.max(1, Math.round(h * s));
         var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
@@ -22,9 +22,9 @@
         }, "image/jpeg", 0.82);
       }
       if (window.createImageBitmap) {
-        createImageBitmap(p.blob).then(function (bm) { draw(bm, bm.width, bm.height, function () { if (bm.close) bm.close(); }); }, fallback);
+        createImageBitmap(SC.photoBlob(p)).then(function (bm) { draw(bm, bm.width, bm.height, function () { if (bm.close) bm.close(); }); }, fallback);
       } else {
-        var im = new Image(), u = URL.createObjectURL(p.blob);
+        var im = new Image(), u = URL.createObjectURL(SC.photoBlob(p));
         im.onload = function () { draw(im, im.naturalWidth, im.naturalHeight, function () { URL.revokeObjectURL(u); }); };
         im.onerror = fallback; im.src = u;
       }
