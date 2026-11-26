@@ -175,10 +175,10 @@
     var c = sc.calc, closingRaw = String(c.closing).trim() ? c.closing : sc.totalStock;
     var v = { opening: SC.num(c.opening), purchases: SC.num(c.purchases), tin: SC.num(c.tin), tout: SC.num(c.tout), closing: SC.num(closingRaw), sales: SC.num(sc.sales) };
     var missing = [];
-    if (v.opening === null) missing.push("Opening stock");
-    if (v.purchases === null) missing.push("Purchases");
-    if (v.closing === null) missing.push("Closing stock (or Total closing stock value above)");
-    if (v.sales === null || v.sales === 0) missing.push("Vitamojo gross sales above");
+    if (v.opening === null) missing.push("Opening stock *");
+    if (v.purchases === null) missing.push("Purchases *");
+    if (v.closing === null) missing.push("Closing stock * (type it here or fill Total closing stock value above)");
+    if (v.sales === null || v.sales === 0) missing.push("Vitamojo gross sales (field above, must be more than 0)");
     return { v: v, missing: missing };
   }
   function calcResult() {
@@ -189,10 +189,11 @@
   function calcText() {
     var r = calcResult();
     if (r) return "Cost of sales &pound;" + SC.fmtNum(r.cost) + " &middot; COI " + SC.fmtNum(r.coi) + "% &middot; <b>GP " + SC.fmtNum(r.gp) + "%</b>" + (sc.gpManual ? "" : " &mdash; filled in above");
-    return "Still needed: " + calcInputs().missing.join(", ") + ".";
+    return "<b>To calculate GP you are missing:</b><ul style='margin:6px 0 0;padding-left:20px'><li>" + calcInputs().missing.join("</li><li>") + "</li></ul>";
   }
   function updateCalc() {
     var out = $("#calc-out"); if (out) out.innerHTML = calcText();
+    var ci = $("[data-calc=closing]"); if (ci) ci.placeholder = String(sc.totalStock).trim() ? sc.totalStock + " (from above)" : "";
     var r = calcResult();
     if (r && !sc.gpManual) {
       sc.gp = SC.fmtNum(r.gp); var gi = $("[data-f=gp]"); if (gi) gi.value = sc.gp;
@@ -216,10 +217,11 @@
       "<label class='f'>Vitamojo gross sales<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='sales' value='" + esc(c.sales) + "'></div></label></div>" +
       "<label class='f'>GP %<div class='money'><input type='text' inputmode='decimal' data-f='gp' value='" + esc(c.gp) + "' style='padding-left:12px'></div></label>" +
       "<div class='gpbox'><b>How to calculate GP</b><br>1. Cost of sales = Opening stock + Purchases + Transfers in &minus; Transfers out &minus; Closing stock<br>2. COI % = Cost of sales / Sales &times; 100<br>3. GP % = 100 &minus; COI %<br>Example: cost 30% &rarr; GP 70%</div>" +
-      "<details class='calc'><summary>GP calculator (optional)</summary><div class='grid2' style='margin-top:10px'>" +
-      ["opening:Opening stock", "purchases:Purchases", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock (blank = Total closing stock value)"].map(function (s) {
-        var p = s.split(":"); return "<label class='f'>" + p[1] + " &pound;<input type='text' inputmode='decimal' data-calc='" + p[0] + "' value='" + esc(c.calc[p[0]]) + "'></label>";
-      }).join("") + "</div><p id='calc-out' class='muted'>" + calcText() + "</p><button class='btn light small' id='btn-usegp'>Recalculate &amp; fill GP %</button></details>" +
+      "<details class='calc'><summary>GP calculator (optional)</summary><p class='muted' style='margin:8px 0 0'><b>*</b> Required if you use the calculator. Sales and Closing stock are also taken from the fields above. Transfers are optional (blank = 0).</p><div class='grid2' style='margin-top:10px'>" +
+      ["opening:Opening stock *", "purchases:Purchases *", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock *"].map(function (s) {
+        var p = s.split(":"), ph = p[0] === "closing" && String(c.totalStock).trim() ? " placeholder='" + esc(c.totalStock) + " (from above)'" : (p[0] === "tin" || p[0] === "tout" ? " placeholder='0'" : "");
+        return "<label class='f'>" + p[1] + " &pound;<input type='text' inputmode='decimal' data-calc='" + p[0] + "' value='" + esc(c.calc[p[0]]) + "'" + ph + "></label>";
+      }).join("") + "</div><div id='calc-out' class='muted' style='margin:10px 0'>" + calcText() + "</div><button class='btn light small' id='btn-usegp'>Recalculate &amp; fill GP %</button></details>" +
       "<label class='f'>GP discussed with the team (notes)<textarea data-f='gpNotes'>" + esc(c.gpNotes) + "</textarea></label></div>";
 
     h += "<div class='sec'><span class='num'>2</span><h3>Line-by-line check: " + (cfg.mandatoryLines || 3) + " lines per category</h3><span class='rule'></span></div>";
