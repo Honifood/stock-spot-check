@@ -126,13 +126,13 @@
   }
   function fmtNum(n) {
     if (n === null || n === undefined || isNaN(n)) return "";
-    var r = Math.round(n * 100) / 100;
+    var r = Math.round(n * 1000) / 1000;
     return String(r);
   }
   function variance(line) {
     var s = num(line.system), c = num(line.counted);
     if (s === null || c === null) return null;
-    return Math.round((c - s) * 100) / 100;
+    return Math.round((c - s) * 1000) / 1000;
   }
   function fmtVar(v) { return v === null ? "" : (v > 0 ? "+" : "") + fmtNum(v); }
 
@@ -143,5 +143,6 @@
     });
   }
 
-  window.SC = { BUILD: "1.5.2", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  var UNITS = ['g', 'kg', 'each'];
+  window.SC = { UNITS: UNITS, BUILD: "1.6.0", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();

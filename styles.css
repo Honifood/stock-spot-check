@@ -45,12 +45,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--pink); bord
 
 .line { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
 .line:last-child { border-bottom: 0; }
-.line .row { display: grid; grid-template-columns: 1fr 74px 74px 58px; gap: 6px; align-items: center; }
+.line .row { display: grid; grid-template-columns: 1fr 74px 74px 66px; gap: 6px; align-items: center; }
 .line input { margin: 0; padding: 10px 8px; }
 .line input.num { text-align: center; }
 .var { text-align: center; font-weight: 800; font-size: 15px; color: var(--soft); }
 .var.neg { color: var(--red); } .var.pos { color: var(--green); }
-.line .nm { display: flex; align-items: center; gap: 4px; }
+.line .nm { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.line select.unit { padding: 6px 28px 6px 8px; font-size: 16px; border-radius: 8px; background-position: right 8px center; }
+.line .row { align-items: start; }
+.var { padding-top: 12px; }
 .mand { font-size: 10px; color: var(--pink); font-weight: 800; }
 .x { background: transparent; border: 0; color: var(--soft); font-size: 20px; padding: 4px 8px; }
 
@@ -111,3 +114,12 @@ input::placeholder, textarea::placeholder { font-size: 13px; }
 .na { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 2px 0 10px; color: var(--blue); }
 .na input { width: 20px; height: 20px; }
 .logo-img { height: 22px; width: auto; display: block; }
+
+.acc { background: #fff; border: 1.5px solid var(--line); border-radius: 14px; margin-bottom: 10px; overflow: hidden; }
+.acc > summary { list-style: none; cursor: pointer; padding: 14px 16px; font-weight: 800; color: var(--blue); font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.acc > summary::-webkit-details-marker { display: none; }
+.acc > summary::after { content: "\25BE"; margin-left: auto; transition: transform .15s; }
+.acc[open] > summary::after { transform: rotate(180deg); }
+.acc-body { padding: 0 16px 16px; }
+.howto h4 { margin: 14px 0 4px; color: var(--blue); font-size: 15px; }
+.howto p { margin: 0 0 8px; line-height: 1.5; font-size: 15px; }

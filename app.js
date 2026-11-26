@@ -39,7 +39,7 @@
   /* ---------------- model ---------------- */
   function blankLines(names) {
     var out = [], n = Math.max(cfg.mandatoryLines || 3, names.length);
-    for (var i = 0; i < n; i++) out.push({ id: SC.uid(), name: names[i] || "", system: "", counted: "" });
+    for (var i = 0; i < n; i++) out.push({ id: SC.uid(), name: names[i] || "", unit: "", system: "", counted: "" });
     return out;
   }
   function newCheck() {
@@ -76,7 +76,7 @@
     var need = cfg.mandatoryLines || 3, total = 0, done = 0;
     c.categories.forEach(function (cat) {
       if (cat.na) { total += need; done += need; return; }
-      for (var i = 0; i < need; i++) { total++; var l = cat.lines[i]; if (l && l.name.trim() && SC.num(l.system) !== null && SC.num(l.counted) !== null) done++; }
+      for (var i = 0; i < need; i++) { total++; var l = cat.lines[i]; if (l && l.name.trim() && l.unit && SC.num(l.system) !== null && SC.num(l.counted) !== null) done++; }
     });
     return { total: total, done: done };
   }
@@ -92,11 +92,11 @@
   function isStandalone() { return window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches); }
   function isIos() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
   function iosTip() {
-    var dismissed = false; try { dismissed = localStorage.getItem("sc_installed") === "1" || Date.now() - Number(localStorage.getItem("sc_instdismiss") || 0) < 7 * 864e5; } catch (e) {}
+    var dismissed = false; try { dismissed = localStorage.getItem("sc_installed") === "1"; } catch (e) {}
     if (isStandalone() || dismissed) return "";
     if (!deferredInstall && !isIos()) return "";   // browsers that cannot install: show nothing
-    return "<div class='card install'><b>Add Spot Check to your " + (isIos() ? "Home Screen" : "device") + "</b><p class='muted' style='margin:6px 0'>Opens like an app, works offline" + (isIos() ? " and keeps your drafts safe." : ".") + "</p>" +
-      "<div class='actions'><button class='btn pink small' id='btn-install'>Install app</button><button class='btn light small' id='btn-tipx'>Not now</button></div></div>";
+    return "<details class='acc install'><summary>&#128241; Add Spot Check to your " + (isIos() ? "Home Screen" : "device") + "</summary><div class='acc-body'><p class='muted' style='margin:0 0 10px'>Opens like an app, works offline" + (isIos() ? " and keeps your drafts safe." : ".") + "</p>" +
+      "<button class='btn pink small' id='btn-install'>Install app</button></div></details>";
   }
   function installNow() {
     if (deferredInstall) {
@@ -106,10 +106,25 @@
     }
     infoBox("Add to Home Screen", "<p style='margin:0 0 4px'><b>1.</b> Tap <b>Share</b> at the bottom of <b>Safari</b> (top right on iPad).</p>" + "<svg viewBox='0 0 300 70' width='100%' role='img' aria-label='Safari bottom bar with the Share button highlighted'><rect x='1' y='14' width='298' height='52' rx='14' fill='#f2f2f7' stroke='#d0d3dc'/><g fill='none' stroke='#8a90a2' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M38 40l8-8m-8 8l8 8m-8-8h16'/><path d='M92 32l8 8-8 8M100 40H84' transform='translate(0 0)'/><path d='M232 32h10v18h-24V32h10' transform='translate(-4 -2)'/><rect x='262' y='30' width='16' height='16' rx='3'/></g><circle cx='150' cy='40' r='21' fill='#F04C86' opacity='.18'/><circle cx='150' cy='40' r='21' fill='none' stroke='#F04C86' stroke-width='2.5'/><g fill='none' stroke='#1E408C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M150 46V29m-6 5l6-6 6 6'/><path d='M141 36h-3v13h24V36h-3'/></g><path d='M150 3v10m-5-5l5 5 5-5' stroke='#F04C86' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" + "<p style='margin:12px 0 4px'><b>2.</b> Scroll down and tap <b>Add to Home Screen</b>.</p>" + "<svg viewBox='0 0 300 120' width='100%' role='img' aria-label='Share menu with Add to Home Screen highlighted'><rect x='1' y='1' width='298' height='118' rx='14' fill='#f2f2f7' stroke='#d0d3dc'/><rect x='14' y='12' width='272' height='28' rx='8' fill='#fff'/><text x='26' y='31' font-size='13' fill='#555' font-family='sans-serif'>Add Bookmark</text><rect x='10' y='46' width='280' height='34' rx='9' fill='#F04C86' opacity='.16' stroke='#F04C86' stroke-width='2.5'/><text x='26' y='68' font-size='14' font-weight='700' fill='#1E408C' font-family='sans-serif'>Add to Home Screen</text><g fill='none' stroke='#1E408C' stroke-width='2.2' stroke-linecap='round'><rect x='256' y='54' width='18' height='18' rx='4'/><path d='M265 58v10m-5-5h10'/></g><rect x='14' y='86' width='272' height='24' rx='8' fill='#fff'/><text x='26' y='103' font-size='13' fill='#555' font-family='sans-serif'>Find on Page</text></svg>" + "<p style='margin:12px 0 4px'><b>3.</b> Tap <b>Add</b>, then open the app from the new icon.</p>" + "<svg viewBox='0 0 300 56' width='100%' role='img' aria-label='Add button at the top right'><rect x='1' y='1' width='298' height='54' rx='14' fill='#f2f2f7' stroke='#d0d3dc'/><text x='18' y='34' font-size='14' fill='#8a90a2' font-family='sans-serif'>Cancel</text><text x='78' y='33' font-size='12' font-weight='700' fill='#333' font-family='sans-serif'>Add to Home Screen</text><rect x='236' y='12' width='52' height='32' rx='16' fill='#F04C86' opacity='.16' stroke='#F04C86' stroke-width='2.5'/><text x='250' y='34' font-size='14' font-weight='700' fill='#1E408C' font-family='sans-serif'>Add</text></svg>" + "<p class='muted' style='margin-top:10px'>It must be Safari &mdash; Chrome on iPhone cannot add apps to the Home Screen.</p>");
   }
+  function howToHtml() {
+    return "<details class='acc'><summary>&#10067; How to use it</summary><div class='acc-body howto'>" +
+      "<h4>What this is</h4><p>The weekly Stock Spot Check for shop visits. Fill it in on your phone during the visit, then export a PDF. Everything is saved on this phone as you type, so you can leave and come back.</p>" +
+      "<h4>1. Start</h4><p>Tap <b>+ New spot check</b>. Choose the shop (you can pick any shop, not only your own), then your name, the store manager, the date and the period. You can keep several spot checks open at once &mdash; they all appear on this screen.</p>" +
+      "<h4>2. Stock value, sales and GP</h4><p>The first boxes are for when you <b>already know the figures</b>: <b>Total closing stock value</b>, <b>Vitamojo gross sales</b> and <b>GP %</b>. If you do not know the GP, do not guess &mdash; open the <b>GP calculator</b> and fill in the boxes marked <b>*</b> (Opening stock, Purchases, Closing stock). Sales and, if you leave Closing stock empty, the closing stock value are taken from the boxes above. Transfers are optional. The GP % is filled in for you, and if something is missing the calculator tells you exactly what.</p>" +
+      "<h4>3. Line-by-line check</h4><p>Every category that is open in the shop needs <b>at least 3 lines</b>. For each line: type the item, choose the <b>unit</b>, then enter what the <b>System</b> says and what you physically <b>Counted</b>. The <b>Var.</b> (variance) is worked out for you: counted minus system, red when you have less than the system says.</p>" +
+      "<p><b>Units:</b> <b>kg</b> or <b>g</b> for weight and <b>each</b> for items counted one by one. 20 kg of rice: type <i>20</i> and choose <i>kg</i>. 3 bottles: type <i>3</i> and choose <i>each</i>. 1.3 kg: type <i>1.3</i> and choose <i>kg</i>, or type <i>1300</i> and choose <i>g</i>. Use the same unit for System and Counted.</p>" +
+      "<p><b>Why 3 lines?</b> One item can be a one-off mistake. Three items give an honest sample of how accurate the stock is in that category, and show whether a problem is isolated or the whole count needs attention. Tap <b>+ Add line</b> to check more, and <b>+ Add category</b> if the shop has something not listed.</p>" +
+      "<p><b>Does the shop not have a category?</b> Other brands, such as Honi Sushi, might not have every category. In that case tick <b>Not used in this shop</b> on that category and it is skipped. The general approach is still to check <b>every</b> category, so only switch one off when the shop genuinely does not have it.</p>" +
+      "<h4>4. Photos, wastage and notes</h4><p>Add photos to any category, to wastage or to <i>Other photos</i> (add a short note to each if useful). Enter the weekly wastage value and notes. Photos are collected at the end of the PDF under the name of their category.</p>" +
+      "<h4>5. Actions and signatures</h4><p>Write the actions agreed and sign with your finger &mdash; you and the store manager.</p>" +
+      "<h4>6. Export</h4><p>Tap <b>Export PDF</b>. If anything required is missing, the app tells you what. Then <b>Share / save PDF</b> and send it. When you have the PDF safe, confirm to delete the spot check from the phone.</p>" +
+      "</div></details>";
+  }
   function renderHome() {
     SC.store.all().then(function (list) {
       var max = cfg.maxSaved || 10;
-      var h = iosTip() + "<h2>Spot checks on this phone <span class='muted'>(" + list.length + "/" + max + ")</span></h2>";
+      var openAcc = Array.prototype.map.call(document.querySelectorAll("#screen-home details.acc"), function (d) { return d.open; });
+      var h = howToHtml() + iosTip() + "<h2>Spot checks on this phone <span class='muted'>(" + list.length + "/" + max + ")</span></h2>";
       h += "<button class='btn pink' id='btn-new'>+ New spot check</button><div style='height:14px'></div>";
       if (!list.length) h += "<div class='empty'>Nothing saved yet.<br>Start a spot check &mdash; it is saved automatically as you type, so you can leave and come back.</div>";
       list.forEach(function (c) {
@@ -122,8 +137,8 @@
       h += "<p class='muted center' style='margin-top:20px'>Everything is stored on this phone only. Export the PDF, send it, then delete the spot check.</p>";
       h += "<div class='ver'><div class='muted'>Version " + SC.BUILD + "</div><button id='btn-checkupd'>Check for the latest version</button></div>";
       $("#screen-home").innerHTML = h;
+      Array.prototype.forEach.call(document.querySelectorAll("#screen-home details.acc"), function (d, i) { if (openAcc[i]) d.open = true; });
       $("#btn-checkupd").onclick = checkUpdate;
-      var tx = $("#btn-tipx"); if (tx) tx.onclick = function () { try { localStorage.setItem("sc_instdismiss", String(Date.now())); } catch (e) {} renderHome(); };
       var ib = $("#btn-install"); if (ib) ib.onclick = installNow;
       $("#btn-new").onclick = function () {
         if (list.length >= max) { infoBox("Storage full", "<p>You can keep up to <b>" + max + "</b> spot checks on this phone. Export or delete one first.</p>"); return; }
@@ -165,10 +180,11 @@
   function lineHtml(ci, li, l) {
     var need = cfg.mandatoryLines || 3, req = li < need, v = SC.variance(l);
     return "<div class='line'><div class='row'>" +
-      "<div class='nm'><input type='text' placeholder='Item' maxlength='60' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'></div>" +
+      "<div class='nm'><input type='text' placeholder='Item' maxlength='60' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'>" +
+      "<select class='unit' aria-label='Unit' data-ci='" + ci + "' data-li='" + li + "' data-k='unit' data-req='" + (req ? 1 : 0) + "'><option value=''>Unit&hellip;</option>" + SC.UNITS.map(function (u) { return "<option value='" + u + "'" + (l.unit === u ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select></div>" +
       "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='System' value='" + esc(l.system) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='system' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",system' aria-label='Toggle minus'>&plusmn;</button></div>" +
       "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='Counted' value='" + esc(l.counted) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='counted' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",counted' aria-label='Toggle minus'>&plusmn;</button></div>" +
-      "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v)) + "</div></div>" +
+      "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v) + (l.unit && l.unit !== "each" ? " " + l.unit : "")) + "</div></div>" +
       (req ? "" : "<div style='text-align:right'><button class='x' style='font-size:13px' data-rmline='" + ci + "," + li + "'>Remove line</button></div>") + "</div>";
   }
   function calcInputs() {
@@ -212,7 +228,7 @@
       "<label class='f'>Period<input type='text' data-f='period' maxlength='20' value='" + esc(c.period) + "' placeholder='e.g. Wk 47'></label></div></div>";
 
     h += "<div class='sec'><span class='num'>1</span><h3>Stock value, Vitamojo sales and GP</h3><span class='rule'></span></div>";
-    h += "<div class='card'><div class='grid2'>" +
+    h += "<div class='card'><p class='muted' style='margin:0 0 10px'>Already know these figures? Type them here. If you do not know the GP %, use the <b>GP calculator</b> below.</p><div class='grid2' style='align-items:end'>" +
       "<label class='f'>Total closing stock value<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='totalStock' value='" + esc(c.totalStock) + "'></div></label>" +
       "<label class='f'>Vitamojo gross sales<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='sales' value='" + esc(c.sales) + "'></div></label></div>" +
       "<label class='f'>GP %<div class='money'><input type='text' inputmode='decimal' data-f='gp' value='" + esc(c.gp) + "' style='padding-left:12px'></div></label>" +
@@ -293,7 +309,7 @@
       else if (t.dataset.k) {
         var ci = +t.dataset.ci, li = +t.dataset.li, l = sc.categories[ci].lines[li]; l[t.dataset.k] = t.value;
         var v = SC.variance(l), el = $("#var-" + ci + "-" + li);
-        el.textContent = v === null ? "–" : SC.fmtVar(v); el.className = "var " + (v < 0 ? "neg" : v > 0 ? "pos" : "");
+        el.textContent = v === null ? "–" : SC.fmtVar(v) + (l.unit && l.unit !== "each" ? " " + l.unit : ""); el.className = "var " + (v < 0 ? "neg" : v > 0 ? "pos" : "");
       } else if (t.dataset.cap) { photoArr(t.dataset.cap)[+t.dataset.i].caption = t.value; }
       else return;
       queueSave();
@@ -323,7 +339,7 @@
         var np = t.dataset.neg.split(","), nl = sc.categories[+np[0]].lines[+np[1]], cur = String(nl[np[2]] || "");
         nl[np[2]] = cur.charAt(0) === "-" ? cur.slice(1) : "-" + cur;
         var ni = root.querySelector("[data-ci='" + np[0] + "'][data-li='" + np[1] + "'][data-k='" + np[2] + "']"); ni.value = nl[np[2]];
-        var nv = SC.variance(nl), nel = $("#var-" + np[0] + "-" + np[1]); nel.textContent = nv === null ? "\u2013" : SC.fmtVar(nv); nel.className = "var " + (nv < 0 ? "neg" : nv > 0 ? "pos" : "");
+        var nv = SC.variance(nl), nel = $("#var-" + np[0] + "-" + np[1]); nel.textContent = nv === null ? "\u2013" : SC.fmtVar(nv) + (nl.unit && nl.unit !== "each" ? " " + nl.unit : ""); nel.className = "var " + (nv < 0 ? "neg" : nv > 0 ? "pos" : "");
         queueSave(); return;
       }
       if (t.dataset.addline !== undefined) { sc.categories[+t.dataset.addline].lines.push({ id: SC.uid(), name: "", system: "", counted: "" }); persist(); renderForm(); }
@@ -354,7 +370,7 @@
   function openForm() {
     // old drafts: pad lines up to the current "mandatory lines" setting
     var need = cfg.mandatoryLines || 3;
-    sc.categories.forEach(function (cat) { while (cat.lines.length < need) cat.lines.push({ id: SC.uid(), name: "", system: "", counted: "" }); });
+    sc.categories.forEach(function (cat) { while (cat.lines.length < need) cat.lines.push({ id: SC.uid(), name: "", unit: "", system: "", counted: "" }); });
     show("form"); renderForm();   // show first: canvases need a real size to measure
   }
 
@@ -368,13 +384,13 @@
       if (cat.na) return;
       var miss = 0, first = null;
       for (var i = 0; i < need; i++) {
-        var l = cat.lines[i] || { name: "", system: "", counted: "" };
-        ["name", "system", "counted"].forEach(function (k) {
-          var bad = k === "name" ? !l.name.trim() : SC.num(l[k]) === null;
+        var l = cat.lines[i] || { name: "", unit: "", system: "", counted: "" };
+        ["name", "unit", "system", "counted"].forEach(function (k) {
+          var bad = k === "name" ? !l.name.trim() : k === "unit" ? !l.unit : SC.num(l[k]) === null;
           if (bad) { miss++; var q = "[data-ci='" + ci + "'][data-li='" + i + "'][data-k='" + k + "']"; var el = $(q); if (el) el.classList.add("invalid"); if (!first) first = q; }
         });
       }
-      if (miss) errs.push({ m: cat.name + ": " + need + " lines need item, system and counted", q: first });
+      if (miss) errs.push({ m: cat.name + ": " + need + " lines need item, unit, system and counted", q: first });
     });
     return errs;
   }
@@ -383,6 +399,8 @@
     if (!String(sc.totalStock).trim()) w.push("Total closing stock value is empty");
     if (!String(sc.sales).trim()) w.push("Vitamojo gross sales is empty");
     if (!String(sc.gp).trim()) w.push("GP % is empty");
+    var nounit = 0; sc.categories.forEach(function (c) { if (!c.na) c.lines.forEach(function (l) { if (!l.unit && (String(l.system).trim() || String(l.counted).trim())) nounit++; }); });
+    if (nounit) w.push(nounit + " line(s) have quantities but no unit");
     if (!sc.sigOps) w.push("Ops manager signature is missing");
     if (!sc.sigStore) w.push("Store manager signature is missing");
     var texts = [sc.store, sc.opsManager, sc.storeManager, sc.period, sc.gpNotes, sc.actions, sc.wastage.notes, sc.wastage.amount];

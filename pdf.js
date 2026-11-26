@@ -133,15 +133,15 @@
     function cardHeader(x, w, title, pink, withCols) {
       col(pink ? LPINK : BLUE, "fill");
       doc.roundedRect(x, y, w, HEAD, 2.4, 2.4, "F"); doc.rect(x, y + 3.5, w, HEAD - 3.5, "F");
-      fitDraw(title, x + 3.5, y + 4.9, w - (withCols ? 58 : 8), 10, true, pink ? BLUE : [255, 255, 255], null, 7.5);
+      fitDraw(title, x + 3.5, y + 4.9, w - (withCols ? 62 : 8), 10, true, pink ? BLUE : [255, 255, 255], null, 7.5);
       if (withCols) {
-        var cw = 15;
+        var cw = 17;
         ["System", "Counted", "Var."].forEach(function (l, i) { text(l, x + w - cw * (3 - i) + cw / 2, y + 4.8, 7, true, [255, 255, 255], { align: "center" }); });
       }
     }
     function drawCatPart(cat, x, w, startRow, rows, forceRows) {
       if (cat.na) { cat = { name: cat.name, lines: [{ name: "Not used in this shop", system: "", counted: "" }] }; }
-      var cw = 15, nameW = w - cw * 3, n = forceRows || rows, top = y, h = HEAD + n * ROW, base = ROW * 0.68;
+      var cw = 17, nameW = w - cw * 3, n = forceRows || rows, top = y, h = HEAD + n * ROW, base = ROW * 0.68;
       cardHeader(x, w, cat.name + (startRow > 0 ? " (cont.)" : ""), false, true);
       col(BLUE, "draw"); doc.setLineWidth(0.5); doc.roundedRect(x, top, w, h, 2.4, 2.4, "S");
       for (var r = 0; r < n; r++) {
@@ -149,10 +149,11 @@
         if (r > 0) { col(RULE, "draw"); doc.setLineWidth(0.25); doc.line(x, ry, x + w, ry); }
         if (l) {
           fitDraw(l.name, x + 3.5, ry + base, nameW - 5, 9, true, BLUE, null, 6.5);
-          fitDraw(l.system, x + nameW + cw * 0.5, ry + base, cw - 2, 9, false, INK, { align: "center" }, 6);
-          fitDraw(l.counted, x + nameW + cw * 1.5, ry + base, cw - 2, 9, false, INK, { align: "center" }, 6);
+          var us = l.unit ? " " + l.unit : "", has = function (v) { return String(v).trim() !== ""; };
+          if (has(l.system)) fitDraw(l.system + us, x + nameW + cw * 0.5, ry + base, cw - 2, 9, false, INK, { align: "center" }, 5.5);
+          if (has(l.counted)) fitDraw(l.counted + us, x + nameW + cw * 1.5, ry + base, cw - 2, 9, false, INK, { align: "center" }, 5.5);
           var v = SC.variance(l);
-          if (v !== null) fitDraw(SC.fmtVar(v), x + nameW + cw * 2.5, ry + base, cw - 2, 9, true, v < 0 ? [211, 59, 59] : INK, { align: "center" }, 6);
+          if (v !== null) fitDraw(SC.fmtVar(v) + us, x + nameW + cw * 2.5, ry + base, cw - 2, 9, true, v < 0 ? [211, 59, 59] : INK, { align: "center" }, 6);
         }
       }
       col(RULE, "draw"); doc.setLineWidth(0.25);
