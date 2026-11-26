@@ -143,5 +143,5 @@
     });
   }
 
-  window.SC = { BUILD: "1.4.1", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  window.SC = { BUILD: "1.5.0", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();
