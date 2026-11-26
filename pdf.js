@@ -215,7 +215,7 @@
 
     section(1, "Stock value, Vitamojo sales and GP", 31);
     var y0 = y;
-    box(M, y0, 52, 14, "TOTAL STOCK VALUE", "£", sc.totalStock, "");
+    box(M, y0, 52, 14, "TOTAL CLOSING STOCK VALUE", "£", sc.totalStock, "");
     box(M + 56, y0, 52, 14, "VITAMOJO GROSS SALES", "£", sc.sales, "");
     box(M, y0 + 17, 108, 14, "GP %", "", sc.gp, "%");
     col(LPINK, "fill"); doc.roundedRect(M + 112, y0, CW - 112, 31, 2.6, 2.6, "F");

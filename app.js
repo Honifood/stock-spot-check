@@ -177,7 +177,7 @@
     var missing = [];
     if (v.opening === null) missing.push("Opening stock");
     if (v.purchases === null) missing.push("Purchases");
-    if (v.closing === null) missing.push("Closing stock (or Total stock value above)");
+    if (v.closing === null) missing.push("Closing stock (or Total closing stock value above)");
     if (v.sales === null || v.sales === 0) missing.push("Vitamojo gross sales above");
     return { v: v, missing: missing };
   }
@@ -212,12 +212,12 @@
 
     h += "<div class='sec'><span class='num'>1</span><h3>Stock value, Vitamojo sales and GP</h3><span class='rule'></span></div>";
     h += "<div class='card'><div class='grid2'>" +
-      "<label class='f'>Total stock value<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='totalStock' value='" + esc(c.totalStock) + "'></div></label>" +
+      "<label class='f'>Total closing stock value<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='totalStock' value='" + esc(c.totalStock) + "'></div></label>" +
       "<label class='f'>Vitamojo gross sales<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='sales' value='" + esc(c.sales) + "'></div></label></div>" +
       "<label class='f'>GP %<div class='money'><input type='text' inputmode='decimal' data-f='gp' value='" + esc(c.gp) + "' style='padding-left:12px'></div></label>" +
       "<div class='gpbox'><b>How to calculate GP</b><br>1. Cost of sales = Opening stock + Purchases + Transfers in &minus; Transfers out &minus; Closing stock<br>2. COI % = Cost of sales / Sales &times; 100<br>3. GP % = 100 &minus; COI %<br>Example: cost 30% &rarr; GP 70%</div>" +
       "<details class='calc'><summary>GP calculator (optional)</summary><div class='grid2' style='margin-top:10px'>" +
-      ["opening:Opening stock", "purchases:Purchases", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock (blank = Total stock value)"].map(function (s) {
+      ["opening:Opening stock", "purchases:Purchases", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock (blank = Total closing stock value)"].map(function (s) {
         var p = s.split(":"); return "<label class='f'>" + p[1] + " &pound;<input type='text' inputmode='decimal' data-calc='" + p[0] + "' value='" + esc(c.calc[p[0]]) + "'></label>";
       }).join("") + "</div><p id='calc-out' class='muted'>" + calcText() + "</p><button class='btn light small' id='btn-usegp'>Recalculate &amp; fill GP %</button></details>" +
       "<label class='f'>GP discussed with the team (notes)<textarea data-f='gpNotes'>" + esc(c.gpNotes) + "</textarea></label></div>";
@@ -378,7 +378,7 @@
   }
   function warnings() {
     var w = [];
-    if (!String(sc.totalStock).trim()) w.push("Total stock value is empty");
+    if (!String(sc.totalStock).trim()) w.push("Total closing stock value is empty");
     if (!String(sc.sales).trim()) w.push("Vitamojo gross sales is empty");
     if (!String(sc.gp).trim()) w.push("GP % is empty");
     if (!sc.sigOps) w.push("Ops manager signature is missing");
