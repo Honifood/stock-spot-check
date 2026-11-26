@@ -86,12 +86,25 @@
     $("#screen-home").innerHTML = "<div class='card'><h3 style='color:#d33b3b;margin-top:0'>Cannot open saved spot checks</h3><p>This browser is blocking storage (private browsing, or storage is full/disabled). Open the app in a normal (non-private) tab, or free up space, then try again.</p><button class='btn' id='btn-retry'>Try again</button></div>";
     $("#btn-retry").onclick = function () { location.reload(); };
   }
+  var deferredInstall = null;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferredInstall = e; if ($("#screen-home") && !$("#screen-home").hidden) renderHome(); });
+  window.addEventListener("appinstalled", function () { deferredInstall = null; try { localStorage.setItem("sc_installed", "1"); } catch (e) {} if (!$("#screen-home").hidden) renderHome(); });
+  function isStandalone() { return window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches); }
+  function isIos() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
   function iosTip() {
-    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    var standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
-    var dismissed = false; try { dismissed = localStorage.getItem("sc_iostip") === "1"; } catch (e) {}
-    if (!ios || standalone || dismissed) return "";
-    return "<div class='card' style='border-color:#F04C86'><b>Keep your drafts safe</b><p class='muted' style='margin:6px 0'>On iPhone, Safari can delete data from websites you do not use for a week. Tap <b>Share</b> &rarr; <b>Add to Home Screen</b> and open the app from the new icon.</p><button class='btn light small' id='btn-tipx'>Got it</button></div>";
+    var dismissed = false; try { dismissed = localStorage.getItem("sc_installed") === "1" || Date.now() - Number(localStorage.getItem("sc_instdismiss") || 0) < 7 * 864e5; } catch (e) {}
+    if (isStandalone() || dismissed) return "";
+    if (!deferredInstall && !isIos()) return "";   // browsers that cannot install: show nothing
+    return "<div class='card install'><b>Add Spot Check to your " + (isIos() ? "Home Screen" : "device") + "</b><p class='muted' style='margin:6px 0'>Opens like an app, works offline" + (isIos() ? " and keeps your drafts safe." : ".") + "</p>" +
+      "<div class='actions'><button class='btn pink small' id='btn-install'>Install app</button><button class='btn light small' id='btn-tipx'>Not now</button></div></div>";
+  }
+  function installNow() {
+    if (deferredInstall) {
+      var p = deferredInstall; deferredInstall = null; p.prompt();
+      p.userChoice.then(function (r) { if (r.outcome === "accepted") { try { localStorage.setItem("sc_installed", "1"); } catch (e) {} } renderHome(); });
+      return;
+    }
+    infoBox("Add to Home Screen", "<ol style='padding-left:20px;line-height:1.6'><li>Tap the <b>Share</b> button <span style='font-size:18px'>&#x2B06;&#xFE0E;</span> at the bottom of Safari (or the top right on iPad).</li><li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. Open the app from the new icon.</li></ol><p class='muted'>It must be Safari &mdash; Chrome on iPhone cannot add apps to the Home Screen.</p>");
   }
   function renderHome() {
     SC.store.all().then(function (list) {
@@ -110,7 +123,8 @@
       h += "<div class='ver'><div class='muted'>Version " + SC.BUILD + "</div><button id='btn-checkupd'>Check for the latest version</button></div>";
       $("#screen-home").innerHTML = h;
       $("#btn-checkupd").onclick = checkUpdate;
-      var tx = $("#btn-tipx"); if (tx) tx.onclick = function () { try { localStorage.setItem("sc_iostip", "1"); } catch (e) {} renderHome(); };
+      var tx = $("#btn-tipx"); if (tx) tx.onclick = function () { try { localStorage.setItem("sc_instdismiss", String(Date.now())); } catch (e) {} renderHome(); };
+      var ib = $("#btn-install"); if (ib) ib.onclick = installNow;
       $("#btn-new").onclick = function () {
         if (list.length >= max) { infoBox("Storage full", "<p>You can keep up to <b>" + max + "</b> spot checks on this phone. Export or delete one first.</p>"); return; }
         sc = newCheck(); persist().then(function (ok) { if (ok) openForm(); else { infoBox("Cannot start a spot check", "<p>Nothing can be saved on this phone right now (storage full or blocked). Free up space and try again.</p>"); sc = null; } });
