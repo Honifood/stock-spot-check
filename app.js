@@ -47,7 +47,7 @@
     return {
       id: SC.uid(), createdAt: Date.now(), updatedAt: Date.now(), status: "draft",
       store: "", opsManager: ops, date: today(), period: "", totalStock: "", sales: "", gp: "",
-      calc: { opening: "", purchases: "", tin: "", tout: "", closing: "" }, gpNotes: "",
+      calc: { opening: "", purchases: "", tin: "", tout: "", credit: "", closing: "" }, gpNotes: "",
       categories: (cfg.categories || []).map(function (c) { return { id: SC.uid(), name: c.name, custom: false, lines: blankLines(c.lines || []), photos: [] }; }),
       wastage: { amount: "", notes: "", photos: [] }, generalPhotos: [],
       actions: "", storeManager: "", sigOps: null, sigStore: null
@@ -110,7 +110,7 @@
     return "<details class='acc'><summary>&#10067; How to use it</summary><div class='acc-body howto'>" +
       "<h4>What this is</h4><p>The weekly Stock Spot Check for shop visits. Fill it in on your phone during the visit, then export a PDF. Everything is saved on this phone as you type, so you can leave and come back.</p>" +
       "<h4>1. Start</h4><p>Tap <b>+ New spot check</b>. Choose the shop (you can pick any shop, not only your own), then your name, the store manager, the date and the period. You can keep several spot checks open at once &mdash; they all appear on this screen.</p>" +
-      "<h4>2. Stock value, sales and GP</h4><p>The first boxes are for when you <b>already know the figures</b>: <b>Total closing stock value</b>, <b>Vitamojo gross sales</b> and <b>GP %</b>. If you do not know the GP, do not guess &mdash; open the <b>GP calculator</b> and fill in the boxes marked <b>*</b> (Opening stock, Purchases, Closing stock). Sales and, if you leave Closing stock empty, the closing stock value are taken from the boxes above. Transfers are optional. The GP % is filled in for you, and if something is missing the calculator tells you exactly what.</p>" +
+      "<h4>2. Stock value, sales and GP</h4><p>The first boxes are for when you <b>already know the figures</b>: <b>Total closing stock value</b>, <b>Vitamojo gross sales</b> and <b>GP %</b>. If you do not know the GP, do not guess &mdash; open the <b>GP calculator</b> and fill in the boxes marked <b>*</b> (Opening stock, Purchases, Closing stock). Sales and, if you leave Closing stock empty, the closing stock value are taken from the boxes above. Transfers in/out and Credit notes are optional (leave blank if you have none). The GP % is filled in for you, and if something is missing the calculator tells you exactly what.</p>" +
       "<h4>3. Line-by-line check</h4><p>Every category that is open in the shop needs <b>at least 3 lines</b>. For each line: type the item, choose the <b>unit</b>, then enter what the <b>System</b> says and what you physically <b>Counted</b>. The <b>Var.</b> (variance) is worked out for you: counted minus system, red when you have less than the system says.</p>" +
       "<p><b>Units:</b> <b>kg</b> or <b>g</b> for weight and <b>each</b> for items counted one by one. 20 kg of rice: type <i>20</i> and choose <i>kg</i>. 3 bottles: type <i>3</i> and choose <i>each</i>. 1.3 kg: type <i>1.3</i> and choose <i>kg</i>, or type <i>1300</i> and choose <i>g</i>. Use the same unit for System and Counted.</p>" +
       "<p><b>Why 3 lines?</b> One item can be a one-off mistake. Three items give an honest sample of how accurate the stock is in that category, and show whether a problem is isolated or the whole count needs attention. Tap <b>+ Add line</b> to check more, and <b>+ Add category</b> if the shop has something not listed.</p>" +
@@ -189,7 +189,7 @@
   }
   function calcInputs() {
     var c = sc.calc, closingRaw = String(c.closing).trim() ? c.closing : sc.totalStock;
-    var v = { opening: SC.num(c.opening), purchases: SC.num(c.purchases), tin: SC.num(c.tin), tout: SC.num(c.tout), closing: SC.num(closingRaw), sales: SC.num(sc.sales) };
+    var v = { opening: SC.num(c.opening), purchases: SC.num(c.purchases), tin: SC.num(c.tin), tout: SC.num(c.tout), credit: SC.num(c.credit), closing: SC.num(closingRaw), sales: SC.num(sc.sales) };
     var missing = [];
     if (v.opening === null) missing.push("Opening stock *");
     if (v.purchases === null) missing.push("Purchases *");
@@ -199,7 +199,7 @@
   }
   function calcResult() {
     var i = calcInputs(); if (i.missing.length) return null;
-    var v = i.v, cost = v.opening + v.purchases + (v.tin || 0) - (v.tout || 0) - v.closing, coi = cost / v.sales * 100;
+    var v = i.v, cost = v.opening + v.purchases + (v.tin || 0) - (v.tout || 0) - (v.credit || 0) - v.closing, coi = cost / v.sales * 100;
     return { cost: cost, coi: coi, gp: 100 - coi };
   }
   function calcText() {
@@ -232,10 +232,10 @@
       "<label class='f'>Total closing stock value<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='totalStock' value='" + esc(c.totalStock) + "'></div></label>" +
       "<label class='f'>Vitamojo gross sales<div class='money'><span>&pound;</span><input type='text' inputmode='decimal' data-f='sales' value='" + esc(c.sales) + "'></div></label></div>" +
       "<label class='f'>GP %<div class='money'><input type='text' inputmode='decimal' data-f='gp' value='" + esc(c.gp) + "' style='padding-left:12px'></div></label>" +
-      "<div class='gpbox'><b>How to calculate GP</b><br>1. Cost of sales = Opening stock + Purchases + Transfers in &minus; Transfers out &minus; Closing stock<br>2. COI % = Cost of sales / Sales &times; 100<br>3. GP % = 100 &minus; COI %<br>Example: cost 30% &rarr; GP 70%</div>" +
-      "<details class='calc'><summary>GP calculator (optional)</summary><p class='muted' style='margin:8px 0 0'><b>*</b> Required if you use the calculator. Sales and Closing stock are also taken from the fields above. Transfers are optional (blank = 0).</p><div class='grid2' style='margin-top:10px'>" +
-      ["opening:Opening stock *", "purchases:Purchases *", "tin:Transfers in", "tout:Transfers out", "closing:Closing stock *"].map(function (s) {
-        var p = s.split(":"), ph = p[0] === "closing" && String(c.totalStock).trim() ? " placeholder='" + esc(c.totalStock) + " (from above)'" : (p[0] === "tin" || p[0] === "tout" ? " placeholder='0'" : "");
+      "<div class='gpbox'><b>How to calculate GP</b><br>1. Cost of sales = Opening stock + Purchases + Transfers in &minus; Transfers out &minus; Credit notes &minus; Closing stock<br>2. COI % = Cost of sales / Sales &times; 100<br>3. GP % = 100 &minus; COI %<br>Example: cost 30% &rarr; GP 70%</div>" +
+      "<details class='calc'><summary>GP calculator (optional)</summary><p class='muted' style='margin:8px 0 0'><b>*</b> Required if you use the calculator. Sales and Closing stock are also taken from the fields above. Transfers in/out and Credit notes are optional (blank = 0).</p><div class='grid2' style='margin-top:10px'>" +
+      ["opening:Opening stock *", "purchases:Purchases *", "tin:Transfers in", "tout:Transfers out", "credit:Credit notes", "closing:Closing stock *"].map(function (s) {
+        var p = s.split(":"), ph = p[0] === "closing" && String(c.totalStock).trim() ? " placeholder='" + esc(c.totalStock) + " (from above)'" : (p[0] === "tin" || p[0] === "tout" || p[0] === "credit" ? " placeholder='0'" : "");
         return "<label class='f'>" + p[1] + " &pound;<input type='text' inputmode='decimal' data-calc='" + p[0] + "' value='" + esc(c.calc[p[0]]) + "'" + ph + "></label>";
       }).join("") + "</div><div id='calc-out' class='muted' style='margin:10px 0'>" + calcText() + "</div><button class='btn light small' id='btn-usegp'>Recalculate &amp; fill GP %</button></details>" +
       "<label class='f'>GP discussed with the team (notes)<textarea data-f='gpNotes'>" + esc(c.gpNotes) + "</textarea></label></div>";

@@ -162,5 +162,5 @@
   }
 
   var UNITS = ['g', 'kg', 'each'];
-  window.SC = { photoBlob: photoBlob, UNITS: UNITS, BUILD: "1.6.1", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
+  window.SC = { photoBlob: photoBlob, UNITS: UNITS, BUILD: "1.7.0", loadConfig: loadConfig, loadConfigStrict: loadConfigStrict, validCfg: validCfg, normCfg: normCfg, store: store, uid: uid, num: num, fmtNum: fmtNum, variance: variance, fmtVar: fmtVar, sha256: sha256 };
 })();

@@ -227,7 +227,7 @@
     col(LPINK, "fill"); doc.roundedRect(M + 112, y0, CW - 112, 31, 2.6, 2.6, "F");
     text("How to calculate GP", M + 116, y0 + 6, 9.5, true);
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); col([30, 40, 80], "text");
-    var gpl = doc.splitTextToSize("1. Cost of sales = Opening stock + Purchases + Transfers in - Transfers out - Closing stock", CW - 120)
+    var gpl = doc.splitTextToSize("1. Cost of sales = Opening stock + Purchases + Transfers in - Transfers out - Credit notes - Closing stock", CW - 120)
       .concat(["2. COI % = Cost of sales / Sales x 100", "3. GP % = 100 - COI %", "Example: cost 30% -> GP 70%"]);
     gpl.forEach(function (l, i) { doc.text(t(l), M + 116, y0 + 10.5 + i * 3.7); });
     y = y0 + 31 + 4;
