@@ -136,7 +136,7 @@
       fitDraw(title, x + 3.5, y + 4.9, w - (withCols ? 62 : 8), 10, true, pink ? BLUE : [255, 255, 255], null, 7.5);
       if (withCols) {
         var cw = 17;
-        ["System", "Counted", "Var."].forEach(function (l, i) { text(l, x + w - cw * (3 - i) + cw / 2, y + 4.8, 7, true, [255, 255, 255], { align: "center" }); });
+        ["Staff input", "Your count", "Var."].forEach(function (l, i) { text(l, x + w - cw * (3 - i) + cw / 2, y + 4.8, 7, true, [255, 255, 255], { align: "center" }); });
       }
     }
     function drawCatPart(cat, x, w, startRow, rows, forceRows) {

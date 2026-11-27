@@ -123,3 +123,16 @@ input::placeholder, textarea::placeholder { font-size: 13px; }
 .acc-body { padding: 0 16px 16px; }
 .howto h4 { margin: 14px 0 4px; color: var(--blue); font-size: 15px; }
 .howto p { margin: 0 0 8px; line-height: 1.5; font-size: 15px; }
+
+/* line layout: item name on its own row, then unit + numbers on one row */
+.line { gap: 8px; }
+.line .itemname { width: 100%; }
+.line .row2 { display: grid; grid-template-columns: 78px 1fr 1fr 66px; gap: 6px; align-items: end; }
+.line .mini { display: flex; flex-direction: column; gap: 3px; margin: 0; min-width: 0; }
+.line .mini > span { font-size: 11px; font-weight: 700; color: var(--soft); text-transform: uppercase; letter-spacing: .3px; }
+.line .row2 select.unit { width: 100%; height: 44px; padding: 0 22px 0 8px; font-size: 16px; border-radius: 10px; background-position: right 7px center; }
+.line .row2 input.num { height: 44px; padding: 0 22px 0 6px; width: 100%; text-align: center; }
+.line .row2 .numwrap .neg { top: 50%; right: 3px; transform: translateY(-50%); padding: 2px 4px; font-size: 12px; }
+.line .row2 .var { height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; font-size: 14px; }
+.line .row2 select.unit { display: block; }
+.line .row2 input.num, .line .row2 .numwrap { display: block; }

@@ -111,8 +111,8 @@
       "<h4>What this is</h4><p>The weekly Stock Spot Check for shop visits. Fill it in on your phone during the visit, then export a PDF. Everything is saved on this phone as you type, so you can leave and come back.</p>" +
       "<h4>1. Start</h4><p>Tap <b>+ New spot check</b>. Choose the shop (you can pick any shop, not only your own), then your name, the store manager, the date and the period. You can keep several spot checks open at once &mdash; they all appear on this screen.</p>" +
       "<h4>2. Stock value, sales and GP</h4><p>The first boxes are for when you <b>already know the figures</b>: <b>Total closing stock value</b>, <b>Vitamojo gross sales</b> and <b>GP %</b>. If you do not know the GP, do not guess &mdash; open the <b>GP calculator</b> and fill in the boxes marked <b>*</b> (Opening stock, Purchases, Closing stock). Sales and, if you leave Closing stock empty, the closing stock value are taken from the boxes above. Transfers in/out and Credit notes are optional (leave blank if you have none). The GP % is filled in for you, and if something is missing the calculator tells you exactly what.</p>" +
-      "<h4>3. Line-by-line check</h4><p>Every category that is open in the shop needs <b>at least 3 lines</b>. For each line: type the item, choose the <b>unit</b>, then enter what the <b>System</b> says and what you physically <b>Counted</b>. The <b>Var.</b> (variance) is worked out for you: counted minus system, red when you have less than the system says.</p>" +
-      "<p><b>Units:</b> <b>kg</b> or <b>g</b> for weight and <b>each</b> for items counted one by one. 20 kg of rice: type <i>20</i> and choose <i>kg</i>. 3 bottles: type <i>3</i> and choose <i>each</i>. 1.3 kg: type <i>1.3</i> and choose <i>kg</i>, or type <i>1300</i> and choose <i>g</i>. Use the same unit for System and Counted.</p>" +
+      "<h4>3. Line-by-line check</h4><p>Every category that is open in the shop needs <b>at least 3 lines</b>. For each line: type the item, choose the <b>unit</b>, then enter the <b>Staff input</b> (the number the shop staff entered in the system) and <b>Your count</b> (what you physically counted). The <b>Var.</b> (variance) is worked out for you: your count minus the staff input, red when you count less than the staff entered.</p>" +
+      "<p><b>Units:</b> <b>kg</b> or <b>g</b> for weight and <b>each</b> for items counted one by one. 20 kg of rice: type <i>20</i> and choose <i>kg</i>. 3 bottles: type <i>3</i> and choose <i>each</i>. 1.3 kg: type <i>1.3</i> and choose <i>kg</i>, or type <i>1300</i> and choose <i>g</i>. The unit applies to both numbers, so use the same one for the staff input and your count.</p>" +
       "<p><b>Why 3 lines?</b> One item can be a one-off mistake. Three items give an honest sample of how accurate the stock is in that category, and show whether a problem is isolated or the whole count needs attention. Tap <b>+ Add line</b> to check more, and <b>+ Add category</b> if the shop has something not listed.</p>" +
       "<p><b>Does the shop not have a category?</b> Other brands, such as Honi Sushi, might not have every category. In that case tick <b>Not used in this shop</b> on that category and it is skipped. The general approach is still to check <b>every</b> category, so only switch one off when the shop genuinely does not have it.</p>" +
       "<h4>4. Photos, wastage and notes</h4><p>Add photos to any category, to wastage or to <i>Other photos</i> (add a short note to each if useful). Enter the weekly wastage value and notes. Photos are collected at the end of the PDF under the name of their category.</p>" +
@@ -178,13 +178,16 @@
   }
   function photoArr(key) { return photoArrOf(sc, key); }
   function lineHtml(ci, li, l) {
-    var need = cfg.mandatoryLines || 3, req = li < need, v = SC.variance(l);
-    return "<div class='line'><div class='row'>" +
-      "<div class='nm'><input type='text' placeholder='Item' maxlength='60' value='" + esc(l.name) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='name' data-req='" + (req ? 1 : 0) + "'>" +
-      "<select class='unit' aria-label='Unit' data-ci='" + ci + "' data-li='" + li + "' data-k='unit' data-req='" + (req ? 1 : 0) + "'><option value=''>Unit&hellip;</option>" + SC.UNITS.map(function (u) { return "<option value='" + u + "'" + (l.unit === u ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select></div>" +
-      "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='System' value='" + esc(l.system) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='system' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",system' aria-label='Toggle minus'>&plusmn;</button></div>" +
-      "<div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='Counted' value='" + esc(l.counted) + "' data-ci='" + ci + "' data-li='" + li + "' data-k='counted' data-req='" + (req ? 1 : 0) + "'><button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + ",counted' aria-label='Toggle minus'>&plusmn;</button></div>" +
-      "<div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v) + (l.unit && l.unit !== "each" ? " " + l.unit : "")) + "</div></div>" +
+    var need = cfg.mandatoryLines || 3, req = li < need, v = SC.variance(l), at = "data-ci='" + ci + "' data-li='" + li + "' data-req='" + (req ? 1 : 0) + "'";
+    function numField(k, label, val) {
+      return "<label class='mini'><span>" + label + "</span><div class='numwrap'><input class='num' type='text' inputmode='decimal' placeholder='0' value='" + esc(val) + "' " + at + " data-k='" + k + "'>" +
+        "<button type='button' class='neg' tabindex='-1' data-neg='" + ci + "," + li + "," + k + "' aria-label='Toggle minus'>&plusmn;</button></div></label>";
+    }
+    return "<div class='line'><input type='text' class='itemname' placeholder='Item' maxlength='60' value='" + esc(l.name) + "' " + at + " data-k='name'>" +
+      "<div class='row2'>" +
+      "<label class='mini'><span>Unit</span><select class='unit' aria-label='Unit' " + at + " data-k='unit'><option value=''>&ndash;</option>" + SC.UNITS.map(function (u) { return "<option value='" + u + "'" + (l.unit === u ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select></label>" +
+      numField("system", "Staff input", l.system) + numField("counted", "Your count", l.counted) +
+      "<div class='mini'><span>Var.</span><div class='var " + (v < 0 ? "neg" : v > 0 ? "pos" : "") + "' id='var-" + ci + "-" + li + "'>" + (v === null ? "&ndash;" : SC.fmtVar(v) + (l.unit && l.unit !== "each" ? " " + l.unit : "")) + "</div></div></div>" +
       (req ? "" : "<div style='text-align:right'><button class='x' style='font-size:13px' data-rmline='" + ci + "," + li + "'>Remove line</button></div>") + "</div>";
   }
   function calcInputs() {
@@ -242,7 +245,7 @@
 
     h += "<div class='sec'><span class='num'>2</span><h3>Line-by-line check: " + (cfg.mandatoryLines || 3) + " lines per category</h3><span class='rule'></span></div>";
     c.categories.forEach(function (cat, ci) {
-      h += "<div class='card blue'><div class='card-head'><span class='t'>" + esc(cat.name) + "</span><span class='cols'><span>System</span><span>Counted</span><span>Var.</span></span></div><div class='card-body'>";
+      h += "<div class='card blue'><div class='card-head'><span class='t'>" + esc(cat.name) + "</span></div><div class='card-body'>";
       h += "<label class='na'><input type='checkbox' data-na='" + ci + "'" + (cat.na ? " checked" : "") + "> Not used in this shop</label>";
       if (cat.na) h += "<p class='muted' style='margin:4px 0 10px'>Marked as not applicable &mdash; no lines needed. Untick to count it.</p>";
       else cat.lines.forEach(function (l, li) { h += lineHtml(ci, li, l); });
@@ -390,7 +393,7 @@
           if (bad) { miss++; var q = "[data-ci='" + ci + "'][data-li='" + i + "'][data-k='" + k + "']"; var el = $(q); if (el) el.classList.add("invalid"); if (!first) first = q; }
         });
       }
-      if (miss) errs.push({ m: cat.name + ": " + need + " lines need item, unit, system and counted", q: first });
+      if (miss) errs.push({ m: cat.name + ": " + need + " lines need item, unit, staff input and your count", q: first });
     });
     return errs;
   }
